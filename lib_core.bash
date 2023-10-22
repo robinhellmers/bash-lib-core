@@ -37,6 +37,65 @@ define()
     eval "$1=\${$1%$'\n'}"
 }
 
+# Exits and outputs error if command before this fails
+eval_cmd()
+{
+    local exit_code=$?
+    (( exit_code == 0 )) && return
+
+    local error_info="$1"
+
+    _validate_input_eval_cmd
+
+    eval $(resize) # Update COLUMNS regardless if shopt checkwinsize is enabled
+    local wrapper="$(printf "%.s#" $(seq $COLUMNS))"
+    local divider="$(printf "%.s-" $(seq $COLUMNS))"
+
+    define output_message << END_OF_OUTPUT_MESSAGE
+${wrapper}
+!! Command failed with exit code: $exit_code
+
+Check the command executed right before eval_cmd()
+
+${divider}
+Backtrace:
+$(backtrace)
+
+${divider}
+Error info:
+
+${error_info}
+
+${wrapper}
+END_OF_OUTPUT_MESSAGE
+
+    echo "$output_message" >&2
+    exit $exit_code
+}
+
+_validate_input_eval_cmd()
+{
+    define function_usage <<END_OF_FUNCTION_USAGE
+Usage: eval_cmd <error_info>
+    <error_info>:
+        * String with information about what command that failed.
+        * Will be output if the previous command exit code is non-zero.
+    Example usage:
+        echo hello
+        eval_cmd 'Failed to echo'
+END_OF_FUNCTION_USAGE
+
+    if [[ -z "$error_info" ]]
+    then
+        define error_info <<END_OF_FUNCTION_USAGE
+Input <error_info> not given.
+END_OF_FUNCTION_USAGE
+
+        invalid_function_usage 2 "$function_usage" "$error_info"
+        exit 1
+    fi
+}
+
 get_func_def_line_num()
 {
     local func_name=$1
