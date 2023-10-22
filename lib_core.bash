@@ -21,3 +21,27 @@ guard_source_max_once()
 }
 
 guard_source_max_once || return
+
+#####################
+### Library start ###
+#####################
+
+# For multiline variable definition
+#
+# Example without evaluation:
+# define my_var <<'END_OF_MESSAGE_WITHOUT_EVAL'
+# First line
+# Second line $var
+# END_OF_MESSAGE_WITHOUT_EVAL
+#
+# Example with evaluation:
+# define my_var <<END_OF_MESSAGE_WITH_EVAL
+# First line
+# Second line $var
+# END_OF_MESSAGE_WITH_EVAL
+define()
+{
+    IFS= read -r -d '' "$1" || true
+    # Remove the trailing newline
+    eval "$1=\${$1%$'\n'}"
+}
