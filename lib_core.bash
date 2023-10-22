@@ -311,3 +311,126 @@ Usage: invalid_function_usage <functions_before> <function_usage> <error_info>
 END_OF_VARIABLE_WITHOUT_EVAL
     fi
 }
+
+# Only store output in multi-file unique readonly global variables or
+# local variables to avoid variable values being overwritten in e.g.
+# sourced library files.
+# Recommended to always call the function when to use it
+find_path()
+{
+    local to_find="$1"
+    local bash_source_array_len="$2"
+    shift 2
+    local bash_source_array=("$@")
+
+    _validate_input_find_path
+
+    # Set 'source' to resolve until not a symlink
+    case "$to_find" in
+        'this'|'this_file')
+            local file=${bash_source_array[0]}
+            ;;
+        'last_exec'|'last_exec_file')
+            local file=${bash_source_array[-1]}
+            ;;
+        *)  # Validation already done
+    esac
+
+    local path file
+    while [ -L "$file" ]; do # resolve until the file is no longer a symlink
+        path=$( cd -P "$( dirname "$file" )" &>/dev/null && pwd )
+        file=$(readlink "$file")
+        # If $file was a relative symlink, we need to resolve it relative
+        # to the path where the symlink file was located
+        [[ $file != /* ]] && file=$path/$file 
+    done
+    path=$( cd -P "$( dirname "$file" )" &>/dev/null && pwd )
+    file="$path/$(basename "$file")"
+
+    case "$to_find" in
+    'this'|'last_exec')
+        echo "$path"
+        ;;
+    'this_file'|'last_exec_file')
+        echo "$file"
+        ;;
+    *)  # Validation already done
+        ;;
+    esac
+}
+
+_validate_input_find_path()
+{
+    define function_usage <<'END_OF_FUNCTION_USAGE'
+Usage: find_path <to_find> <bash_source_array_len> <bash_source_array>
+    <to_find>:
+        * 'this'
+            - Path to this file
+        * 'this_file'
+            - Path and filename to this file
+        * 'last_exec'
+            - Path to the latest executed script
+            - Example:
+                main.sh sources script_1.bash
+                script_1.sh executes script_2.sh
+                script_2.sh sources  script_3.sh
+                script_3.sh calls find_path()
+                find_path() outputs path to script_2.bash
+        * 'last_exec_file'
+            - Path and filename to the latest executed script
+            - Example:
+                main.sh sources script_1.bash
+                script_1.sh executes script_2.sh
+                script_2.sh sources  script_3.sh
+                script_3.sh calls find_path()
+                find_path() outputs path & filname to script_2.bash
+    <bash_source_array_len>:
+        - Length of ${BASH_SOURCE[@]}
+        - "${#BASH_SOURCE[@]}"
+    <bash_source_array>:
+        - Actual array 
+        - "${BASH_SOURCE[@]}"
+END_OF_FUNCTION_USAGE
+
+    # Validate <to_find>
+    case "$to_find" in
+        'this'|'this_file'|'last_exec'|'last_exec_file')
+            ;;
+        *)
+            define error_info <<END_OF_ERROR_INFO
+Invalid input <to_find>: '$to_find'
+END_OF_ERROR_INFO
+            invalid_function_usage 2 "$function_usage" "$error_info"
+            exit 1
+            ;;
+    esac
+
+    # Validate <bash_source_array_len>
+    case $bash_source_array_len in
+        ''|*[!0-9]*)
+define error_info <<END_OF_ERROR_INFO
+Invalid input <bash_source_array_len>, not a number: '$bash_source_array_len'
+END_OF_ERROR_INFO
+            invalid_function_usage 2 "$function_usage" "$error_info"
+            exit 1
+            ;;
+        *)  ;;
+    esac
+
+    # Validate <bash_source_array>
+    # Use 'bash_source_array_len' to ensure the actual ${BASH_SOURCE[@]} array
+    # was passed to the function
+    if (( bash_source_array_len != ${#bash_source_array[@]} ))
+    then
+define error_info <<END_OF_ERROR_INFO
+Given length <bash_source_array_len> differs from array length of <bash_source_array>.
+    \$bash_source_array_len:   '$bash_source_array_len'
+    \${#bash_source_array[@]}: '${#bash_source_array[@]}'
+END_OF_ERROR_INFO
+
+        invalid_function_usage 2 "$function_usage" "$error_info"
+        exit 1
+    fi
+
+    unset function_usage error_info
+}
