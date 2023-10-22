@@ -264,7 +264,8 @@ ${func_call_line_num}: ${func_call_file}
 Defined at:
 ${func_def_line_num}: ${func_def_file}
 
-Whole backtrace:
+${divider}
+Backtrace:
 $(backtrace)
 
 ${divider}
