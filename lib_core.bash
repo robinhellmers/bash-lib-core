@@ -169,3 +169,48 @@ EOM
     
     echo "$backtrace_output"
 }
+
+invalid_function_usage()
+{
+    # functions_before=1 represents the function call before this function
+    local functions_before=$1
+    local function_usage="$2"
+    local error_info="$3"
+
+    local func_name="${FUNCNAME[functions_before]}"
+    local func_def_file="${BASH_SOURCE[functions_before]}"
+    local func_call_file="${BASH_SOURCE[functions_before+1]}"
+    local func_call_line_num="${BASH_LINENO[functions_before]}"
+
+    eval $(resize) # Update COLUMNS regardless if shopt checkwinsize is enabled
+    local wrapper="$(printf "%.s#" $(seq $COLUMNS))"
+    local divider="$(printf "%.s-" $(seq $COLUMNS))"
+
+    local output_message
+    define output_message <<END_OF_VARIABLE_WITH_EVAL
+
+${wrapper}
+!! Invalid usage of ${func_name}()
+
+Called from:
+${func_call_line_num}: ${func_call_file}
+
+Whole backtrace:
+$(backtrace)
+
+${divider}
+Error info:
+
+${error_info}
+
+${divider}
+Usage info:
+
+${function_usage}
+
+${wrapper}
+END_OF_VARIABLE_WITH_EVAL
+
+    echo "$output_message" >&2
+    [[ "$input_error_this_func" == 'true' ]] && exit 1
+}
