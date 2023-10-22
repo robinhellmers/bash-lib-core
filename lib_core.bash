@@ -46,6 +46,19 @@ define()
     eval "$1=\${$1%$'\n'}"
 }
 
+get_func_def_line_num()
+{
+    local func_name=$1
+    local script_file=$2
+
+    local output_num
+
+    output_num=$(grep -c "^[\s]*${func_name}()" $script_file)
+    (( output_num == 1 )) || { echo '?'; return 1; }
+
+    grep -n "^[\s]*${func_name}()" $script_file | cut -d: -f1
+}
+
 backtrace()
 {
     # 1 or 0 depending if to include 'backtrace' function in call stack
@@ -182,6 +195,7 @@ invalid_function_usage()
 
     local func_name="${FUNCNAME[functions_before]}"
     local func_def_file="${BASH_SOURCE[functions_before]}"
+    local func_def_line_num="$(get_func_def_line_num $func_name $func_def_file)"
     local func_call_file="${BASH_SOURCE[functions_before+1]}"
     local func_call_line_num="${BASH_LINENO[functions_before]}"
 
@@ -197,6 +211,8 @@ ${wrapper}
 
 Called from:
 ${func_call_line_num}: ${func_call_file}
+Defined at:
+${func_def_line_num}: ${func_def_file}
 
 Whole backtrace:
 $(backtrace)
