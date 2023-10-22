@@ -222,7 +222,7 @@ ${wrapper}
 END_OF_VARIABLE_WITH_EVAL
 
     echo "$output_message" >&2
-    [[ "$input_error_this_func" == 'true' ]] && exit 1
+    [[ "$invalid_usage_of_this_func" == 'true' ]] && exit 1
 }
 
 # Output:
@@ -236,7 +236,7 @@ _validate_input_invalid_function_usage()
     local input_function_usage="$2"
     local input_error_info="$3"
 
-    local invalid_usage_of_this_func='false'
+    invalid_usage_of_this_func='false'
 
     local re='^[0-9]+$'
     if ! [[ $input_functions_before =~ $re ]]
