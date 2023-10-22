@@ -177,6 +177,9 @@ invalid_function_usage()
     local function_usage="$2"
     local error_info="$3"
 
+    _validate_input_invalid_function_usage "$@"
+    # Output: Overrides all the variables when input is invalid
+
     local func_name="${FUNCNAME[functions_before]}"
     local func_def_file="${BASH_SOURCE[functions_before]}"
     local func_call_file="${BASH_SOURCE[functions_before+1]}"
@@ -213,4 +216,82 @@ END_OF_VARIABLE_WITH_EVAL
 
     echo "$output_message" >&2
     [[ "$input_error_this_func" == 'true' ]] && exit 1
+}
+
+# Output:
+# Overrides all the variables when input is invalid
+# - functions_before
+# - function_usage
+# - error_info
+_validate_input_invalid_function_usage()
+{
+    local input_functions_before="$1"
+    local input_function_usage="$2"
+    local input_error_info="$3"
+
+    local invalid_usage_of_this_func='false'
+
+    local re='^[0-9]+$'
+    if ! [[ $input_functions_before =~ $re ]]
+    then
+        invalid_usage_of_this_func='true'
+
+        # Remove newlines and spaces to make output better
+        input_functions_before=${input_functions_before//[$'\n' ]/}
+        # Usage error of this function
+        define error_info <<END_OF_ERROR_INFO
+Given input <functions_before> is not a number: '$input_functions_before'
+END_OF_ERROR_INFO
+
+    elif [[ -z "$input_function_usage" ]]
+    then
+        invalid_usage_of_this_func='true'
+
+        # Usage error of this function
+        define error_info <<END_OF_ERROR_INFO
+Given input <function_usage> missing.
+END_OF_ERROR_INFO
+
+    elif [[ -z "$input_error_info" ]]
+    then
+        invalid_usage_of_this_func='true'
+
+        # Usage error of this function
+        define error_info <<END_OF_ERROR_INFO
+Given input <error_info> missing.
+END_OF_ERROR_INFO
+    fi
+
+    if [[ "$invalid_usage_of_this_func" == 'true' ]]
+    then
+        functions_before=0
+
+        # Function usage of this function
+        define function_usage <<'END_OF_VARIABLE_WITHOUT_EVAL'
+Usage: invalid_function_usage <functions_before> <function_usage> <error_info>
+    <functions_before>:
+        * Which function to mark as invalid usage.
+            - '0': This function: invalid_function_usage()
+            - '1': 1 function before this. Which calls invalid_function_usage()
+            - '2': 2 functions before this
+    <function_usage>:
+        * Multi-line description on how to use the function, create multi-line
+          variable using define() and pass that variable to the function.
+            - Example:
+
+              define function_usage <<'END_OF_VARIABLE'
+              Usage: "Function name" <arg1> <arg2>
+                  <arg1>:
+                      - "arg1 option 1" / "arg1 description"
+                  <arg2>:
+                      - "arg2 option 1"
+                      - "arg2 option 2"
+              END_OF_VARIABLE
+
+    <error_info>:
+        * Single-/Multi-line with extra info.
+            - Example:
+              "Invalid input <arg2>: '$arg_two'"
+END_OF_VARIABLE_WITHOUT_EVAL
+    fi
 }
