@@ -47,7 +47,16 @@ eval_cmd()
 
     _validate_input_eval_cmd
 
-    eval $(resize) # Update COLUMNS regardless if shopt checkwinsize is enabled
+    # Update COLUMNS regardless if shopt checkwinsize is enabled
+    if [[ -c /dev/tty ]]
+    then
+        # Pass /dev/tty to the command as if running as background process, the shell
+        # is not attached to a terminal
+        IFS=' ' read LINES COLUMNS < <(stty size </dev/tty)
+    else
+        COLUMNS=80
+    fi
+
     local wrapper="$(printf "%.s#" $(seq $COLUMNS))"
     local divider="$(printf "%.s-" $(seq $COLUMNS))"
 
@@ -249,7 +258,16 @@ invalid_function_usage()
     local func_call_file="${BASH_SOURCE[functions_before+1]}"
     local func_call_line_num="${BASH_LINENO[functions_before]}"
 
-    eval $(resize) # Update COLUMNS regardless if shopt checkwinsize is enabled
+    # Update COLUMNS regardless if shopt checkwinsize is enabled
+    if [[ -c /dev/tty ]]
+    then
+        # Pass /dev/tty to the command as if running as background process, the shell
+        # is not attached to a terminal
+        IFS=' ' read LINES COLUMNS < <(stty size </dev/tty)
+    else
+        COLUMNS=80
+    fi
+
     local wrapper="$(printf "%.s#" $(seq $COLUMNS))"
     local divider="$(printf "%.s-" $(seq $COLUMNS))"
 
