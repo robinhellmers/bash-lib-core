@@ -246,8 +246,16 @@ invalid_function_usage()
 {
     # functions_before=1 represents the function call before this function
     local functions_before=$1
-    local function_usage="$2"
+    local function_id_or_usage="$2"
     local error_info="$3"
+
+    # local function_id="$1"
+    # local error_info="$2"
+
+    local function_usage
+    function_usage=$(get_help_text "$function_id_or_usage")
+    local exit_code=$?
+    (( exit_code != 0 )) && function_usage="$function_id_or_usage"
 
     _validate_input_invalid_function_usage "$@"
     # Output: Overrides all the variables when input is invalid
@@ -502,4 +510,201 @@ END_OF_ERROR_INFO
     fi
 
     unset function_usage error_info
+}
+
+# Arrays to store _handle_args() help text data
+_handle_args_registered_help_text_function_ids=()
+_handle_args_registered_help_text=()
+
+register_help_text()
+{
+    local function_id="$1"
+    local help_text="$2"
+
+    # Special case for register_help_text(), manually parse for help flag
+    _handle_input_register_help_text "$1"
+
+    _validate_input_register_help_text
+
+    _handle_args_registered_help_text_function_ids+=("$function_id")
+    _handle_args_registered_help_text+=("$help_text")
+}
+
+_handle_input_register_help_text()
+{
+    define function_usage <<END_OF_FUNCTION_USAGE
+Usage: register_help_text <function_id> <help_text>
+
+<function_id>:
+    * Each function can have its own set of flags and help text. The function id is used
+      for identifying which flags and help text to use. Must be the same function id as
+      when registering through register_function_flags().
+        - Function id can e.g. be the function name.
+<help_text>:
+    * Multi-line help text where the first line should have the form like e.g.:
+        'register_help_text <function_id> <help_text>'
+      Followed by an empty line and thereafter optional multi-line description.
+    * Shall not include flag description as that is added automatically using the text
+      registered through register_function_flags().
+END_OF_FUNCTION_USAGE
+
+
+    # Manual check as _handle_args() cannot be used, creates circular dependency
+    if [[ "$1" == '-h' ]] || [[ "$1" == '--help' ]]
+    then
+        echo "$function_usage"
+        exit 0
+    fi
+}
+
+_validate_input_register_help_text()
+{
+    if [[ -z "$function_id" ]]
+    then
+        define error_info <<END_OF_ERROR_INFO
+Given <function_id> is empty.
+END_OF_ERROR_INFO
+        invalid_function_usage 2 "$function_usage" "$error_info"
+        exit 1
+    fi
+
+    # Check if function id already registered help text
+    for registered in "${_handle_args_registered_help_text_function_ids[@]}"
+    do
+        if [[ "$function_id" == "$registered" ]]
+        then
+            define error_info <<END_OF_ERROR_INFO
+Given <function_id> have already registered an help text: '$function_id'
+END_OF_ERROR_INFO
+            invalid_function_usage 2 "$function_usage" "$error_info"
+            exit 1
+        fi
+    done
+
+    if [[ -z "$help_text" ]]
+    then
+        define error_info <<END_OF_ERROR_INFO
+Given <help_text> is empty.
+END_OF_ERROR_INFO
+        invalid_function_usage 2 "$function_usage" "$error_info"
+        exit 1
+    fi
+}
+
+get_help_text()
+{
+    local function_id="$1"
+
+    ###
+    # Check that <function_id> is registered through register_help_text()
+    local function_registered='false'
+    for i in "${!_handle_args_registered_help_text_function_ids[@]}"
+    do
+        local current_function_id="${_handle_args_registered_help_text_function_ids[i]}"
+        if [[ "$function_id" == "$current_function_id" ]]
+        then
+            local registered_help_text="${_handle_args_registered_help_text[i]}"
+            function_registered='true'
+        fi
+    done
+
+    [[ "$function_registered" != 'true' ]] && return 1
+
+    ###
+    # Check that <function_id> is registered through register_function_flags()
+    local function_registered='false'
+    for i in "${!_handle_args_registered_function_ids[@]}"
+    do
+        if [[ "${_handle_args_registered_function_ids[$i]}" == "$function_id" ]]
+        then
+            function_registered='true'
+            function_index=$i
+            break
+        fi
+    done
+
+    [[ "$function_registered" != 'true' ]] && return 1
+
+    ###
+    # Get flags and corresponding descriptions for <function_id>
+    local valid_short_options
+    local valid_long_options
+    local flags_descriptions
+    # Convert space separated elements into an array
+    IFS='§' read -ra valid_short_options <<< "${_handle_args_registered_function_short_option[function_index]}"
+    IFS='§' read -ra valid_long_options <<< "${_handle_args_registered_function_long_option[function_index]}"
+    IFS='§' read -ra flags_descriptions <<< "${_handle_args_registered_function_descriptions[function_index]}"
+
+    ###
+    # Compile together the whole help text with flag descriptions
+    local help_text
+    define help_text << END_OF_HELP_TEXT
+Usage: ${registered_help_text}
+
+Options:
+END_OF_HELP_TEXT
+
+    local array_flag_description_line=()
+    local max_line_length=0
+
+    ### 
+    # Construct help text lines for each flag & find max line length
+    for i in "${!flags_descriptions[@]}"
+    do
+        local flag_description_line="  "
+
+        # Short flag
+        if [[ "${valid_short_options[i]}" != '_' ]]
+        then
+            flag_description_line+="${valid_short_options[i]}, "
+        fi
+
+        # Long flag
+        if [[ "${valid_long_options[i]}" != '_' ]]
+        then
+            flag_description_line+="${valid_long_options[i]}"
+        fi
+        
+        flag_description_line+="   "
+
+        # Find out length
+        local line_length=$(wc -m <<< "$flag_description_line")
+        (( line_length-- ))
+        (( line_length > max_line_length )) && max_line_length=$line_length
+
+        array_flag_description_line+=("$flag_description_line")
+    done
+
+    ### 
+    # Reconstruct lines with good whitespacing using max line length
+    for i in "${!array_flag_description_line[@]}"
+    do
+        local flag_description_line="${array_flag_description_line[i]}"
+        local line_length=$(wc -m <<< "$flag_description_line")
+        ((line_length--))
+
+        ###
+        # Calculate whitespace for line to line up with maximum length line
+        local extra_whitespace=''
+        if (( line_length < max_line_length ))
+        then
+            local diff_length=$((max_line_length - line_length))
+            extra_whitespace="$(printf "%.s " $(seq $diff_length))"
+        fi
+
+        ###
+        # Construct line
+        flag_description_line="${flag_description_line}${extra_whitespace}${flags_descriptions[i]}"
+        array_flag_description_line[i]="$flag_description_line"
+    done
+
+    ###
+    # Output text
+    echo "$help_text"
+    for line in "${array_flag_description_line[@]}"
+    do
+        echo "$line"
+    done
+
+    return 0
 }
