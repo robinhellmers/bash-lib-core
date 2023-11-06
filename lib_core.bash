@@ -695,6 +695,7 @@ get_help_text()
 
     ###
     # Output flag description lines
+    echo
     echo "Flags:"
     for line in "${array_flag_description_line[@]}"
     do
