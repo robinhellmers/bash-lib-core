@@ -623,7 +623,11 @@ get_help_text()
         fi
     done
 
-    [[ "$function_registered" != 'true' ]] && return 1
+    ###
+    # Output first part of help text
+    echo "Usage: ${registered_help_text}"
+
+    [[ "$function_registered" != 'true' ]] && return 0
 
     ###
     # Get flags and corresponding descriptions for <function_id>
@@ -634,15 +638,6 @@ get_help_text()
     IFS='§' read -ra valid_short_options <<< "${_handle_args_registered_function_short_option[function_index]}"
     IFS='§' read -ra valid_long_options <<< "${_handle_args_registered_function_long_option[function_index]}"
     IFS='§' read -ra flags_descriptions <<< "${_handle_args_registered_function_descriptions[function_index]}"
-
-    ###
-    # Compile together the whole help text with flag descriptions
-    local help_text
-    define help_text << END_OF_HELP_TEXT
-Usage: ${registered_help_text}
-
-Options:
-END_OF_HELP_TEXT
 
     local array_flag_description_line=()
     local max_line_length=0
@@ -699,8 +694,8 @@ END_OF_HELP_TEXT
     done
 
     ###
-    # Output text
-    echo "$help_text"
+    # Output flag description lines
+    echo "Flags:"
     for line in "${array_flag_description_line[@]}"
     do
         echo "$line"
