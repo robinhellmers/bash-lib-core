@@ -55,12 +55,11 @@ source_lib()
 {
     local lib="$1"
 
-    local this_file this_filename
-    this_file="$(find_path 'this_file' "${#BASH_SOURCE[@]}" \
-                                           "${BASH_SOURCE[@]}")"
-    this_filename="$(basename "$this_file")"
+    local func_call_file
+    func_call_file="$(basename "${BASH_SOURCE[1]}")"
+
     local error_info
-    error_info="File '$this_filename' requires library '$(basename "$lib")'"
+    error_info="File '$func_call_file' requires library '$(basename "$lib")'"
 
     if ! [[ -f "$lib" ]]
     then
