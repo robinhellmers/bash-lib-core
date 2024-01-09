@@ -21,6 +21,7 @@ guard_source_max_once || return
 # List of functions for usage outside of lib
 #
 # - define()
+# - source_lib()
 # - eval_cmd()
 # - backtrace()
 # - invalid_function_usage()
@@ -47,6 +48,33 @@ define()
     IFS= read -r -d '' "$1" || true
     # Remove the trailing newline
     eval "$1=\${$1%$'\n'}"
+}
+
+# Sources library and exits with good info in case of not being able to source
+source_lib()
+{
+    local lib="$1"
+
+    local this_file this_filename
+    this_file="$(find_path 'this_file' "${#BASH_SOURCE[@]}" \
+                                           "${BASH_SOURCE[@]}")"
+    this_filename="$(basename "$this_file")"
+    local error_info
+    error_info="File '$this_filename' requires library '$(basename "$lib")'"
+
+    if ! [[ -f "$lib" ]]
+    then
+        echo "$error_info"
+        echo "Necessary library does not exist: '$lib'"
+        exit 1
+    fi
+
+    if ! source "$lib"
+    then
+        echo "$error_info"
+        echo "Could not source library even though the file exists: '$lib'"
+        exit 1
+    fi
 }
 
 # Exits and outputs error if command before this fails
