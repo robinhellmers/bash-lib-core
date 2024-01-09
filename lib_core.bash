@@ -17,6 +17,18 @@ guard_source_max_once || return
 ### Library start ###
 #####################
 
+###
+# List of functions for usage outside of lib
+#
+# - define()
+# - eval_cmd()
+# - backtrace()
+# - invalid_function_usage()
+# - find_path()
+# - register_help_text()
+# - get_help_text()
+###
+
 # For multiline variable definition
 #
 # Example without evaluation:
