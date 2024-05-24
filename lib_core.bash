@@ -123,14 +123,19 @@ END_OF_OUTPUT_MESSAGE
 
 _validate_input_eval_cmd()
 {
+
     define function_usage <<END_OF_FUNCTION_USAGE
 Usage: eval_cmd <error_info>
-    <error_info>:
-        * String with information about what command that failed.
-        * Will be output if the previous command exit code is non-zero.
-    Example usage:
-        echo hello
-        eval_cmd 'Failed to echo'
+
+Evaluates the previous command's exit code. If non-zero, it will output the 
+given <error_info> as well as function backtrace. Exits with the same exit code
+as the previous command.
+
+<error_info>: String with information about what command that failed.
+
+Example usage:
+    echo hello
+    eval_cmd 'Failed to echo'
 END_OF_FUNCTION_USAGE
 
     if [[ -z "$error_info" ]]
