@@ -17,6 +17,33 @@ guard_source_max_once || return 0
 ### Library start ###
 #####################
 
+
+###
+# Color variables
+COLOR_END='\033[0m'
+
+COLOR_DEFAULT='\033[0;39m'
+COLOR_DEFAULT_BOLD='\033[1;39m'
+
+COLOR_BLACK='\033[0;30m'
+COLOR_RED='\033[0;31m'
+COLOR_GREEN='\033[0;32m'
+COLOR_YELLOW='\033[0;33m'
+COLOR_BLUE='\033[0;34m'
+COLOR_MAGENTA='\033[0;35m'
+COLOR_CYAN='\033[0;36m'
+COLOR_WHITE='\033[0;37m'
+
+COLOR_BOLD_BLACK='\033[1;30m'
+COLOR_BOLD_RED='\033[1;31m'
+COLOR_BOLD_GREEN='\033[1;32m'
+COLOR_BOLD_YELLOW='\033[1;33m'
+COLOR_BOLD_BLUE='\033[1;34m'
+COLOR_BOLD_MAGENTA='\033[1;35m'
+COLOR_BOLD_CYAN='\033[1;36m'
+COLOR_BOLD_WHITE='\033[1;37m'
+###
+
 ###
 # List of functions for usage outside of lib
 #
