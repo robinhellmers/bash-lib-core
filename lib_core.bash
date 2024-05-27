@@ -775,3 +775,31 @@ get_help_text()
 
     return 0
 }
+
+echo_color()
+{
+    local color="$1"
+    shift
+    local output="$@"
+    printf "${color}%s${COLOR_END}\n" "$output"
+}
+
+echo_warning()
+{
+    echo_color "$COLOR_YELLOW" "$@"
+}
+
+echo_error()
+{
+    echo_color "$COLOR_RED" "$@"
+}
+
+echo_highlight()
+{
+    echo_color "$COLOR_DEFAULT_BOLD" "$@"
+}
+
+echo_success()
+{
+    echo_color "$COLOR_GREEN" "$@"
+}
