@@ -791,7 +791,7 @@ echo_warning()
 
 echo_error()
 {
-    echo_color "$COLOR_RED" "$@"
+    echo_color "$COLOR_RED" "$@" >&2
 }
 
 echo_highlight()
