@@ -803,3 +803,11 @@ echo_success()
 {
     echo_color "$COLOR_GREEN" "$@"
 }
+
+command_exists()
+{
+    local cmd="$1"
+
+    # 'hash' ignores aliases
+    hash "$1" >/dev/null 2>&1
+}
