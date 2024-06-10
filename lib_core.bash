@@ -97,8 +97,8 @@ source_lib()
 
     if ! source "$lib"
     then
-        echo "$error_info"
-        echo "Could not source library even though the file exists: '$lib'"
+        echo_error "$error_info"
+        echo_error "Could not source library even though the file exists: '$lib'"
         exit 1
     fi
 }
