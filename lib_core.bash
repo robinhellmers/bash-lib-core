@@ -792,6 +792,8 @@ echo_warning()
 echo_error()
 {
     echo_color "$COLOR_RED" "$@" >&2
+    # Flush stderr by line-buffering stdout of echo and redirecting it to stderr
+    stdbuf -oL printf "" >&2
 }
 
 echo_highlight()
