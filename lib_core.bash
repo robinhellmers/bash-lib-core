@@ -392,7 +392,7 @@ _error_call()
     local exit_code=$?
     (( exit_code != 0 )) && function_usage="$function_id_or_usage"
 
-    _validate_input_invalid_function_usage "$@"
+    _validate_input_error_call "$@"
     # Output: Overrides all the variables when input is invalid
 
     local func_name="${FUNCNAME[functions_before]}"
@@ -451,7 +451,7 @@ END_OF_VARIABLE_WITH_EVAL
 # - functions_before
 # - function_usage
 # - error_info
-_validate_input_invalid_function_usage()
+_validate_input_error_call()
 {
     local input_functions_before="$1"
     local input_function_usage="$2"
