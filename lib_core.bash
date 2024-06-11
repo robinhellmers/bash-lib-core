@@ -358,6 +358,24 @@ error()
                 "$start_output_message"
 }
 
+warning()
+{
+    # functions_before=1 represents the function call before this function
+    local functions_before=$1
+    local function_id_or_usage="$2"
+    local error_info="$3"
+
+    local func_name="${FUNCNAME[functions_before]}"
+
+    local start_output_message
+    start_output_message="!! Warning in ${func_name}()"
+
+    _error_call "$((functions_before + 1))" \
+                "$function_id_or_usage" \
+                "$error_info" \
+                "$start_output_message"
+}
+
 _error_call()
 {
     # functions_before=1 represents the function call before this function
@@ -412,7 +430,7 @@ Backtrace:
 $(backtrace $((functions_before - 1 )))
 
 ${divider}
-Error info:
+Info:
 
 ${error_info}
 
