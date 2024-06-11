@@ -191,9 +191,18 @@ get_func_def_line_num()
 
 backtrace()
 {
-    # 1 or 0 depending if to include 'backtrace' function in call stack
-    # 0 = include 'backtrace' function
-    local i_default=1 
+    local level_function_callstack=$1
+
+    # How much to include in function call stack
+    # 0 - includes backtrace()
+    # 1 - includes the function calling backtrace()
+    # 2 - includes 2 function above backtrace()
+    local default_level_function_callstack=1 
+
+    local re='^[0-9]+$'
+    [[ $level_function_callstack =~ $re ]] ||
+        level_function_callstack=$default_level_function_callstack
+
     # Top level function name
     local top_level_function='main'
 
@@ -227,7 +236,7 @@ EOM
 
     ### Find max lengths
     #
-    local i=$i_default
+    local i=$level_function_callstack
     local iter_maxlen=0
     local func_name_maxlen=0
     local line_num_maxlen=0
@@ -257,7 +266,7 @@ EOM
     #
     local extra_whitespace
     local backtrace_output
-    i=$i_default
+    i=$level_function_callstack
     until [[ "${FUNCNAME[$i]}" == "$top_level_function" ]]
     do
         eval "$iter_part_template"
@@ -320,6 +329,43 @@ invalid_function_usage()
     local function_id_or_usage="$2"
     local error_info="$3"
 
+    local func_name="${FUNCNAME[functions_before]}"
+
+    local start_output_message
+    start_output_message="!! Invalid usage of ${func_name}()"
+
+    _error_call "$((functions_before + 1))" \
+                "$function_id_or_usage" \
+                "$error_info" \
+                "$start_output_message"
+}
+
+error()
+{
+    # functions_before=1 represents the function call before this function
+    local functions_before=$1
+    local function_id_or_usage="$2"
+    local error_info="$3"
+
+    local func_name="${FUNCNAME[functions_before]}"
+
+    local start_output_message
+    start_output_message="!! Error in ${func_name}()"
+
+    _error_call "$((functions_before + 1))" \
+                "$function_id_or_usage" \
+                "$error_info" \
+                "$start_output_message"
+}
+
+_error_call()
+{
+    # functions_before=1 represents the function call before this function
+    local functions_before=$1
+    local function_id_or_usage="$2"
+    local error_info="$3"
+    local start_output_message="$4"
+
     # local function_id="$1"
     # local error_info="$2"
 
@@ -354,7 +400,7 @@ invalid_function_usage()
     define output_message <<END_OF_VARIABLE_WITH_EVAL
 
 ${wrapper}
-!! Invalid usage of ${func_name}()
+${start_output_message}
 
 Called from:
 ${func_call_line_num}: ${func_call_file}
@@ -363,7 +409,7 @@ ${func_def_line_num}: ${func_def_file}
 
 ${divider}
 Backtrace:
-$(backtrace)
+$(backtrace $((functions_before - 1 )))
 
 ${divider}
 Error info:
