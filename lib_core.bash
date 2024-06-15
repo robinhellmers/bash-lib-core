@@ -543,32 +543,71 @@ _create_wrapper_divider()
 
 _create_start_output_message()
 {
-    : # Stub
+    define output_message <<END_OF_VARIABLE_WITH_EVAL
+
+${wrapper}
+${start_output_message}
+END_OF_VARIABLE_WITH_EVAL
 }
 
 _append_defined_at_output_message()
 {
-    : # Stub
+    define output_message <<END_OF_VARIABLE_WITH_EVAL
+${output_message}
+${potentially_divider}
+Called from:
+${func_call_line_num}: ${func_call_file}
+Defined at:
+${func_def_line_num}: ${func_def_file}
+
+END_OF_VARIABLE_WITH_EVAL
+    potentially_divider="$divider"
 }
 
 _append_backtrace_output_message()
 {
-    : # Stub
+    define output_message <<END_OF_VARIABLE_WITH_EVAL
+${output_message}
+${potentially_divider}
+Backtrace:
+$(backtrace $((functions_before + 2)))
+
+END_OF_VARIABLE_WITH_EVAL
+    potentially_divider="$divider"
 }
 
 _append_extra_info_output_message()
 {
-    : # Stub
+    define output_message <<END_OF_VARIABLE_WITH_EVAL
+${output_message}
+${potentially_divider}
+Extra info:
+
+${extra_info}
+
+END_OF_VARIABLE_WITH_EVAL
+    potentially_divider="$divider"
 }
 
 _append_help_text_output_message()
 {
-    : # Stub
+    define output_message <<END_OF_VARIABLE_WITH_EVAL
+${output_message}
+${potentially_divider}
+Help text:
+
+${help_text}
+
+END_OF_VARIABLE_WITH_EVAL
+    potentially_divider="$divider"
 }
 
 _append_end_wrapper_output_message()
 {
-    : # Stub
+    define output_message <<END_OF_VARIABLE_WITH_EVAL
+${output_message}
+${wrapper}
+END_OF_VARIABLE_WITH_EVAL
 }
 
 invalid_function_usage()
