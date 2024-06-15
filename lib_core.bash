@@ -1103,6 +1103,61 @@ END_OF_ERROR_INFO
     fi
 }
 
+################################################################################
+################################################################################
+##### From below here, you can call register_function_flags()
+##### This is because of circular dependencies if called before
+################################################################################
+################################################################################
+
+# For previous _error_call()
+#
+# Very important to call both functions for '_error_call' to avoid circular call:
+# - register_function_flags()
+# - register_help_text() 
+register_function_flags '_error_call' \
+                        '' '--no-defined-at' 'false' \
+                        "Do not output where the function called function is defined at." \
+                        '' '--no-backtrace' 'false' \
+                        "Do not output a backtrace of function calls." \
+                        '' '--no-extra-info' 'false' \
+                        "Do not output extra info." \
+                        '' '--no-help-text' 'false' \
+                        "Do not output a function help text" \
+                        '' '--manual-help-text' 'true' \
+                        "Instead of using '<function_id> to get the help text, give the help text manually."
+                        
+
+# For previous _error_call()
+#
+# Very important to call both functions for '_error_call' to avoid circular call:
+# - register_function_flags()
+# - register_help_text() 
+register_help_text '_error_call' \
+"_error_call <functions_before> <function_id> <extra_info> <start_output_message>
+
+Arguments:
+    <functions_before>:
+        Used for the output 'Defined at' & 'Backtrace' sections.
+        Which function which to mark with the error.
+        - '0': This function: _error_call()
+        - '1': 1 function before this. Which calls _error_call()
+        - '2': 2 functions before this
+    <function_id>:
+        Used for the output 'Help text' section.
+        Function ID used to register the function help text & flags:
+        - register_help_test()
+        - register_function_flags()
+    <extra_info>:
+        Single-/Multi-line with extra info.
+        - Example:
+            \"Invalid input <arg_two>: '\$arg_two'\"
+    <start_output_message>:
+        First line of the error message, indicating what kind of error.
+        - Example:
+            \"Error in \${func_name}()\""
+
+
 # Sources library and exits with good info in case of not being able to source
 source_lib()
 {
