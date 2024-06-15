@@ -49,6 +49,12 @@ COLOR_BOLD_WHITE='\033[1;37m'
 #
 # - define()
 #
+# - get_func_def_line_num()
+# - is_short_flag()
+# - is_long_flag()
+# - get_long_flag_var_name()
+# - valid_var_name()
+#
 # - backtrace()
 # - _error_call()
 # - invalid_function_usage()
@@ -65,11 +71,6 @@ COLOR_BOLD_WHITE='\033[1;37m'
 # - find_path()
 # - handle_input_arrays_dynamically()
 #
-# - get_func_def_line_num()
-# - is_short_flag()
-# - is_long_flag()
-# - get_long_flag_var_name()
-# - valid_var_name()
 # - echo_color()
 # - echo_warning()
 # - echo_error()
@@ -96,6 +97,69 @@ define()
     IFS= read -r -d '' "$1" || true
     # Remove the trailing newline
     eval "$1=\${$1%$'\n'}"
+}
+
+get_func_def_line_num()
+{
+    local func_name=$1
+    local script_file=$2
+
+    local output_num
+
+    output_num=$(grep -c "^[\s]*${func_name}()" $script_file)
+    (( output_num == 1 )) || { echo '?'; return 1; }
+
+    grep -n "^[\s]*${func_name}()" $script_file | cut -d: -f1
+}
+
+is_short_flag()
+{
+    local to_check="$1"
+
+    [[ -z "$to_check" ]] && return 1
+
+    # Check that it starts with a single hyphen, not double
+    [[ "$to_check" =~ ^-[^-] ]] || return 2
+
+    # Check that it has a single character after the hypen
+    [[ "$to_check" =~ ^-[[:alpha:]]$ ]] || return 3
+
+    return 0
+}
+
+is_long_flag()
+{
+    local to_check="$1"
+
+    [[ -z "$to_check" ]] && return 1
+
+    [[ "$to_check" =~ ^-- ]] || return 2
+
+    # TODO: Update such that we cannot have the long flags '--_', '--__'
+    #       etc.
+    get_long_flag_var_name "$to_check" &>/dev/null || return 3
+
+    return 0
+}
+
+# Outputs valid variable name if the flag is valid, replaces hyphen with underscore
+get_long_flag_var_name()
+{
+    local long_flag="${1#--}" # Remove initial --
+
+    grep -q '^[[:alpha:]][-[:alpha:][:digit:]]*$' <<< "$long_flag" || return 1
+
+    # Replace hyphens with underscore
+    local var_name=$(sed 's/-/_/g' <<< "$long_flag")
+
+    valid_var_name "$var_name" || return 1
+
+    echo "$var_name"
+}
+
+valid_var_name()
+{
+    grep -q '^[_[:alpha:]][_[:alpha:][:digit:]]*$' <<< "$1"
 }
 
 backtrace()
@@ -1317,69 +1381,6 @@ handle_input_arrays_dynamically()
         done
         ((array_suffix++))
     done
-}
-
-get_func_def_line_num()
-{
-    local func_name=$1
-    local script_file=$2
-
-    local output_num
-
-    output_num=$(grep -c "^[\s]*${func_name}()" $script_file)
-    (( output_num == 1 )) || { echo '?'; return 1; }
-
-    grep -n "^[\s]*${func_name}()" $script_file | cut -d: -f1
-}
-
-is_short_flag()
-{
-    local to_check="$1"
-
-    [[ -z "$to_check" ]] && return 1
-
-    # Check that it starts with a single hyphen, not double
-    [[ "$to_check" =~ ^-[^-] ]] || return 2
-
-    # Check that it has a single character after the hypen
-    [[ "$to_check" =~ ^-[[:alpha:]]$ ]] || return 3
-
-    return 0
-}
-
-is_long_flag()
-{
-    local to_check="$1"
-
-    [[ -z "$to_check" ]] && return 1
-
-    [[ "$to_check" =~ ^-- ]] || return 2
-
-    # TODO: Update such that we cannot have the long flags '--_', '--__'
-    #       etc.
-    get_long_flag_var_name "$to_check" &>/dev/null || return 3
-
-    return 0
-}
-
-# Outputs valid variable name if the flag is valid, replaces hyphen with underscore
-get_long_flag_var_name()
-{
-    local long_flag="${1#--}" # Remove initial --
-
-    grep -q '^[[:alpha:]][-[:alpha:][:digit:]]*$' <<< "$long_flag" || return 1
-
-    # Replace hyphens with underscore
-    local var_name=$(sed 's/-/_/g' <<< "$long_flag")
-
-    valid_var_name "$var_name" || return 1
-
-    echo "$var_name"
-}
-
-valid_var_name()
-{
-    grep -q '^[_[:alpha:]][_[:alpha:][:digit:]]*$' <<< "$1"
 }
 
 echo_color()
