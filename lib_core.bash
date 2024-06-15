@@ -51,6 +51,7 @@ COLOR_BOLD_WHITE='\033[1;37m'
 #
 # - register_function_flags()
 # - register_help_text()
+# - get_help_text()
 #
 # - source_lib()
 # - eval_cmd()
@@ -59,7 +60,6 @@ COLOR_BOLD_WHITE='\033[1;37m'
 # - error()
 # - warning()
 # - find_path()
-# - get_help_text()
 # - _handle_args()
 # - handle_input_arrays_dynamically()
 #
@@ -385,6 +385,120 @@ END_OF_ERROR_INFO
         invalid_function_usage 2 "$function_usage" "$error_info"
         exit 1
     fi
+}
+
+get_help_text()
+{
+    local function_id="$1"
+
+    ###
+    # Check that <function_id> is registered through register_help_text()
+    local function_registered='false'
+    for i in "${!_handle_args_registered_help_text_function_ids[@]}"
+    do
+        local current_function_id="${_handle_args_registered_help_text_function_ids[i]}"
+        if [[ "$function_id" == "$current_function_id" ]]
+        then
+            local registered_help_text="${_handle_args_registered_help_text[i]}"
+            function_registered='true'
+        fi
+    done
+
+    [[ "$function_registered" != 'true' ]] && return 1
+
+    ###
+    # Check that <function_id> is registered through register_function_flags()
+    local function_registered='false'
+    for i in "${!_handle_args_registered_function_ids[@]}"
+    do
+        if [[ "${_handle_args_registered_function_ids[$i]}" == "$function_id" ]]
+        then
+            function_registered='true'
+            function_index=$i
+            break
+        fi
+    done
+
+    ###
+    # Output first part of help text
+    echo "Usage: ${registered_help_text}"
+
+    [[ "$function_registered" != 'true' ]] && return 0
+
+    ###
+    # Get flags and corresponding descriptions for <function_id>
+    local valid_short_options
+    local valid_long_options
+    local flags_descriptions
+    # Convert space separated elements into an array
+    IFS='§' read -ra valid_short_options <<< "${_handle_args_registered_function_short_option[function_index]}"
+    IFS='§' read -ra valid_long_options <<< "${_handle_args_registered_function_long_option[function_index]}"
+    IFS='§' read -ra flags_descriptions <<< "${_handle_args_registered_function_descriptions[function_index]}"
+
+    local array_flag_description_line=()
+    local max_line_length=0
+
+    ###
+    # Construct help text lines for each flag & find max line length
+    for i in "${!flags_descriptions[@]}"
+    do
+        local flag_description_line="  "
+
+        # Short flag
+        if [[ "${valid_short_options[i]}" != '_' ]]
+        then
+            flag_description_line+="${valid_short_options[i]}, "
+        fi
+
+        # Long flag
+        if [[ "${valid_long_options[i]}" != '_' ]]
+        then
+            flag_description_line+="${valid_long_options[i]}"
+        fi
+
+        flag_description_line+="   "
+
+        # Find out length
+        local line_length=$(wc -m <<< "$flag_description_line")
+        (( line_length-- ))
+        (( line_length > max_line_length )) && max_line_length=$line_length
+
+        array_flag_description_line+=("$flag_description_line")
+    done
+
+    ###
+    # Reconstruct lines with good whitespacing using max line length
+    for i in "${!array_flag_description_line[@]}"
+    do
+        local flag_description_line="${array_flag_description_line[i]}"
+        local line_length=$(wc -m <<< "$flag_description_line")
+        ((line_length--))
+
+        ###
+        # Calculate whitespace for line to line up with maximum length line
+        local extra_whitespace=''
+        if (( line_length < max_line_length ))
+        then
+            local diff_length=$((max_line_length - line_length))
+            extra_whitespace="$(printf "%.s " $(seq $diff_length))"
+        fi
+
+        ###
+        # Construct line
+        flag_description_line="${flag_description_line}${extra_whitespace}${flags_descriptions[i]}"
+        array_flag_description_line[i]="$flag_description_line"
+    done
+
+    ###
+    # Output flag description lines
+    echo
+    echo "Flags:"
+    for line in "${array_flag_description_line[@]}"
+    do
+        echo "$line"
+    done
+
+    return 0
 }
 
 # Sources library and exits with good info in case of not being able to source
@@ -942,120 +1056,6 @@ END_OF_ERROR_INFO
     fi
 
     unset function_usage error_info
-}
-
-get_help_text()
-{
-    local function_id="$1"
-
-    ###
-    # Check that <function_id> is registered through register_help_text()
-    local function_registered='false'
-    for i in "${!_handle_args_registered_help_text_function_ids[@]}"
-    do
-        local current_function_id="${_handle_args_registered_help_text_function_ids[i]}"
-        if [[ "$function_id" == "$current_function_id" ]]
-        then
-            local registered_help_text="${_handle_args_registered_help_text[i]}"
-            function_registered='true'
-        fi
-    done
-
-    [[ "$function_registered" != 'true' ]] && return 1
-
-    ###
-    # Check that <function_id> is registered through register_function_flags()
-    local function_registered='false'
-    for i in "${!_handle_args_registered_function_ids[@]}"
-    do
-        if [[ "${_handle_args_registered_function_ids[$i]}" == "$function_id" ]]
-        then
-            function_registered='true'
-            function_index=$i
-            break
-        fi
-    done
-
-    ###
-    # Output first part of help text
-    echo "Usage: ${registered_help_text}"
-
-    [[ "$function_registered" != 'true' ]] && return 0
-
-    ###
-    # Get flags and corresponding descriptions for <function_id>
-    local valid_short_options
-    local valid_long_options
-    local flags_descriptions
-    # Convert space separated elements into an array
-    IFS='§' read -ra valid_short_options <<< "${_handle_args_registered_function_short_option[function_index]}"
-    IFS='§' read -ra valid_long_options <<< "${_handle_args_registered_function_long_option[function_index]}"
-    IFS='§' read -ra flags_descriptions <<< "${_handle_args_registered_function_descriptions[function_index]}"
-
-    local array_flag_description_line=()
-    local max_line_length=0
-
-    ###
-    # Construct help text lines for each flag & find max line length
-    for i in "${!flags_descriptions[@]}"
-    do
-        local flag_description_line="  "
-
-        # Short flag
-        if [[ "${valid_short_options[i]}" != '_' ]]
-        then
-            flag_description_line+="${valid_short_options[i]}, "
-        fi
-
-        # Long flag
-        if [[ "${valid_long_options[i]}" != '_' ]]
-        then
-            flag_description_line+="${valid_long_options[i]}"
-        fi
-
-        flag_description_line+="   "
-
-        # Find out length
-        local line_length=$(wc -m <<< "$flag_description_line")
-        (( line_length-- ))
-        (( line_length > max_line_length )) && max_line_length=$line_length
-
-        array_flag_description_line+=("$flag_description_line")
-    done
-
-    ###
-    # Reconstruct lines with good whitespacing using max line length
-    for i in "${!array_flag_description_line[@]}"
-    do
-        local flag_description_line="${array_flag_description_line[i]}"
-        local line_length=$(wc -m <<< "$flag_description_line")
-        ((line_length--))
-
-        ###
-        # Calculate whitespace for line to line up with maximum length line
-        local extra_whitespace=''
-        if (( line_length < max_line_length ))
-        then
-            local diff_length=$((max_line_length - line_length))
-            extra_whitespace="$(printf "%.s " $(seq $diff_length))"
-        fi
-
-        ###
-        # Construct line
-        flag_description_line="${flag_description_line}${extra_whitespace}${flags_descriptions[i]}"
-        array_flag_description_line[i]="$flag_description_line"
-    done
-
-    ###
-    # Output flag description lines
-    echo
-    echo "Flags:"
-    for line in "${array_flag_description_line[@]}"
-    do
-        echo "$line"
-    done
-
-    return 0
 }
 
 # Process flags & non-optional arguments
