@@ -527,7 +527,18 @@ _get_func_info()
 
 _create_wrapper_divider()
 {
-    : # Stub
+    # Update COLUMNS regardless if shopt checkwinsize is enabled
+    if [[ -c /dev/tty ]]
+    then
+        # Pass /dev/tty to the command as if running as background process, the shell
+        # is not attached to a terminal
+        IFS=' ' read LINES COLUMNS < <(stty size </dev/tty)
+    else
+        COLUMNS=80
+    fi
+
+    wrapper="$(printf "%.s#" $(seq $COLUMNS))"
+    divider="$(printf "%.s-" $(seq $COLUMNS))"
 }
 
 _create_start_output_message()
