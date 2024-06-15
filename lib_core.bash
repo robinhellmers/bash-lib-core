@@ -49,6 +49,7 @@ COLOR_BOLD_WHITE='\033[1;37m'
 #
 # - define()
 #
+# - _error_call()
 # - invalid_function_usage()
 #
 # - register_function_flags()
@@ -95,6 +96,154 @@ define()
     IFS= read -r -d '' "$1" || true
     # Remove the trailing newline
     eval "$1=\${$1%$'\n'}"
+}
+
+_error_call()
+{
+    # functions_before=1 represents the function call before this function
+    local functions_before=$1
+    local function_id_or_usage="$2"
+    local error_info="$3"
+    local start_output_message="$4"
+
+    # local function_id="$1"
+    # local error_info="$2"
+
+    local function_usage
+    function_usage=$(get_help_text "$function_id_or_usage")
+    local exit_code=$?
+    (( exit_code != 0 )) && function_usage="$function_id_or_usage"
+
+    _validate_input_error_call "$@"
+    # Output: Overrides all the variables when input is invalid
+
+    local func_name="${FUNCNAME[functions_before]}"
+    local func_def_file="${BASH_SOURCE[functions_before]}"
+    local func_def_line_num="$(get_func_def_line_num $func_name $func_def_file)"
+    local func_call_file="${BASH_SOURCE[functions_before+1]}"
+    local func_call_line_num="${BASH_LINENO[functions_before]}"
+
+    # Update COLUMNS regardless if shopt checkwinsize is enabled
+    if [[ -c /dev/tty ]]
+    then
+        # Pass /dev/tty to the command as if running as background process, the shell
+        # is not attached to a terminal
+        IFS=' ' read LINES COLUMNS < <(stty size </dev/tty)
+    else
+        COLUMNS=80
+    fi
+
+    local wrapper="$(printf "%.s#" $(seq $COLUMNS))"
+    local divider="$(printf "%.s-" $(seq $COLUMNS))"
+
+    local output_message
+    define output_message <<END_OF_VARIABLE_WITH_EVAL
+
+${wrapper}
+${start_output_message}
+
+Called from:
+${func_call_line_num}: ${func_call_file}
+Defined at:
+${func_def_line_num}: ${func_def_file}
+
+${divider}
+Backtrace:
+$(backtrace $((functions_before - 1 )))
+
+${divider}
+Info:
+
+${error_info}
+
+${divider}
+Usage info:
+
+${function_usage}
+
+${wrapper}
+END_OF_VARIABLE_WITH_EVAL
+
+    echo "$output_message" >&2
+    [[ "$invalid_usage_of_this_func" == 'true' ]] && exit 1
+}
+
+# Output:
+# Overrides all the variables when input is invalid
+# - functions_before
+# - function_usage
+# - error_info
+_validate_input_error_call()
+{
+    local input_functions_before="$1"
+    local input_function_usage="$2"
+    local input_error_info="$3"
+
+    invalid_usage_of_this_func='false'
+
+    local re='^[0-9]+$'
+    if ! [[ $input_functions_before =~ $re ]]
+    then
+        invalid_usage_of_this_func='true'
+
+        # Remove newlines and spaces to make output better
+        input_functions_before=${input_functions_before//[$'\n' ]/}
+        # Usage error of this function
+        define error_info <<END_OF_ERROR_INFO
+Given input <functions_before> is not a number: '$input_functions_before'
+END_OF_ERROR_INFO
+
+    elif [[ -z "$input_function_usage" ]]
+    then
+        invalid_usage_of_this_func='true'
+
+        # Usage error of this function
+        define error_info <<END_OF_ERROR_INFO
+Given input <function_usage> missing.
+END_OF_ERROR_INFO
+
+    elif [[ -z "$input_error_info" ]]
+    then
+        invalid_usage_of_this_func='true'
+
+        # Usage error of this function
+        define error_info <<END_OF_ERROR_INFO
+Given input <error_info> missing.
+END_OF_ERROR_INFO
+    fi
+
+    if [[ "$invalid_usage_of_this_func" == 'true' ]]
+    then
+        functions_before=0
+
+        # Function usage of this function
+        define function_usage <<'END_OF_VARIABLE_WITHOUT_EVAL'
+Usage: invalid_function_usage <functions_before> <function_usage> <error_info>
+    <functions_before>:
+        * Which function to mark as invalid usage.
+            - '0': This function: invalid_function_usage()
+            - '1': 1 function before this. Which calls invalid_function_usage()
+            - '2': 2 functions before this
+    <function_usage>:
+        * Multi-line description on how to use the function, create multi-line
+          variable using define() and pass that variable to the function.
+            - Example:
+
+              define function_usage <<'END_OF_VARIABLE'
+              Usage: "Function name" <arg1> <arg2>
+                  <arg1>:
+                      - "arg1 option 1" / "arg1 description"
+                  <arg2>:
+                      - "arg2 option 1"
+                      - "arg2 option 2"
+              END_OF_VARIABLE
+
+    <error_info>:
+        * Single-/Multi-line with extra info.
+            - Example:
+              "Invalid input <arg2>: '$arg_two'"
+END_OF_VARIABLE_WITHOUT_EVAL
+    fi
 }
 
 invalid_function_usage()
@@ -1004,154 +1153,6 @@ warning()
                 "$function_id_or_usage" \
                 "$error_info" \
                 "$start_output_message"
-}
-
-_error_call()
-{
-    # functions_before=1 represents the function call before this function
-    local functions_before=$1
-    local function_id_or_usage="$2"
-    local error_info="$3"
-    local start_output_message="$4"
-
-    # local function_id="$1"
-    # local error_info="$2"
-
-    local function_usage
-    function_usage=$(get_help_text "$function_id_or_usage")
-    local exit_code=$?
-    (( exit_code != 0 )) && function_usage="$function_id_or_usage"
-
-    _validate_input_error_call "$@"
-    # Output: Overrides all the variables when input is invalid
-
-    local func_name="${FUNCNAME[functions_before]}"
-    local func_def_file="${BASH_SOURCE[functions_before]}"
-    local func_def_line_num="$(get_func_def_line_num $func_name $func_def_file)"
-    local func_call_file="${BASH_SOURCE[functions_before+1]}"
-    local func_call_line_num="${BASH_LINENO[functions_before]}"
-
-    # Update COLUMNS regardless if shopt checkwinsize is enabled
-    if [[ -c /dev/tty ]]
-    then
-        # Pass /dev/tty to the command as if running as background process, the shell
-        # is not attached to a terminal
-        IFS=' ' read LINES COLUMNS < <(stty size </dev/tty)
-    else
-        COLUMNS=80
-    fi
-
-    local wrapper="$(printf "%.s#" $(seq $COLUMNS))"
-    local divider="$(printf "%.s-" $(seq $COLUMNS))"
-
-    local output_message
-    define output_message <<END_OF_VARIABLE_WITH_EVAL
-
-${wrapper}
-${start_output_message}
-
-Called from:
-${func_call_line_num}: ${func_call_file}
-Defined at:
-${func_def_line_num}: ${func_def_file}
-
-${divider}
-Backtrace:
-$(backtrace $((functions_before - 1 )))
-
-${divider}
-Info:
-
-${error_info}
-
-${divider}
-Usage info:
-
-${function_usage}
-
-${wrapper}
-END_OF_VARIABLE_WITH_EVAL
-
-    echo "$output_message" >&2
-    [[ "$invalid_usage_of_this_func" == 'true' ]] && exit 1
-}
-
-# Output:
-# Overrides all the variables when input is invalid
-# - functions_before
-# - function_usage
-# - error_info
-_validate_input_error_call()
-{
-    local input_functions_before="$1"
-    local input_function_usage="$2"
-    local input_error_info="$3"
-
-    invalid_usage_of_this_func='false'
-
-    local re='^[0-9]+$'
-    if ! [[ $input_functions_before =~ $re ]]
-    then
-        invalid_usage_of_this_func='true'
-
-        # Remove newlines and spaces to make output better
-        input_functions_before=${input_functions_before//[$'\n' ]/}
-        # Usage error of this function
-        define error_info <<END_OF_ERROR_INFO
-Given input <functions_before> is not a number: '$input_functions_before'
-END_OF_ERROR_INFO
-
-    elif [[ -z "$input_function_usage" ]]
-    then
-        invalid_usage_of_this_func='true'
-
-        # Usage error of this function
-        define error_info <<END_OF_ERROR_INFO
-Given input <function_usage> missing.
-END_OF_ERROR_INFO
-
-    elif [[ -z "$input_error_info" ]]
-    then
-        invalid_usage_of_this_func='true'
-
-        # Usage error of this function
-        define error_info <<END_OF_ERROR_INFO
-Given input <error_info> missing.
-END_OF_ERROR_INFO
-    fi
-
-    if [[ "$invalid_usage_of_this_func" == 'true' ]]
-    then
-        functions_before=0
-
-        # Function usage of this function
-        define function_usage <<'END_OF_VARIABLE_WITHOUT_EVAL'
-Usage: invalid_function_usage <functions_before> <function_usage> <error_info>
-    <functions_before>:
-        * Which function to mark as invalid usage.
-            - '0': This function: invalid_function_usage()
-            - '1': 1 function before this. Which calls invalid_function_usage()
-            - '2': 2 functions before this
-    <function_usage>:
-        * Multi-line description on how to use the function, create multi-line
-          variable using define() and pass that variable to the function.
-            - Example:
-
-              define function_usage <<'END_OF_VARIABLE'
-              Usage: "Function name" <arg1> <arg2>
-                  <arg1>:
-                      - "arg1 option 1" / "arg1 description"
-                  <arg2>:
-                      - "arg2 option 1"
-                      - "arg2 option 2"
-              END_OF_VARIABLE
-
-    <error_info>:
-        * Single-/Multi-line with extra info.
-            - Example:
-              "Invalid input <arg2>: '$arg_two'"
-END_OF_VARIABLE_WITHOUT_EVAL
-    fi
 }
 
 # Only store output in multi-file unique readonly global variables or
