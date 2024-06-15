@@ -45,33 +45,58 @@ COLOR_BOLD_WHITE='\033[1;37m'
 ###
 
 ###
-# List of functions for usage outside of lib
+# List of global definitions - Functions, variables, arrays
 #
-# - define()
-# - source_lib()
-# - eval_cmd()
-# - backtrace()
-# - invalid_function_usage()
-# - error()
-# - warning()
-# - find_path()
-# - register_function_flags()
-# - register_help_text()
-# - get_help_text()
-# - _handle_args()
-# - handle_input_arrays_dynamically()
+#   define()
 #
-# - get_func_def_line_num()
-# - is_short_flag()
-# - is_long_flag()
-# - get_long_flag_var_name()
-# - valid_var_name()
-# - echo_color()
-# - echo_warning()
-# - echo_error()
-# - echo_highlight()
-# - echo_success()
-# - command_exists()
+#   get_func_def_line_num()
+#   is_short_flag()
+#   is_long_flag()
+#   get_long_flag_var_name()
+#   valid_var_name()
+#
+#   backtrace()
+#   _error_call()
+#       _validate_input_error_call()
+#   invalid_function_usage()
+#
+#   register_function_flags()
+#       Array: _handle_args_registered_function_ids[]
+#       Array: _handle_args_registered_function_short_option[]
+#       Array: _handle_args_registered_function_long_option[]
+#       Array: _handle_args_registered_function_values[]
+#       _handle_input_register_function_flags()
+#   register_help_text()
+#       Array: _handle_args_registered_help_text_function_ids[]
+#       Array: _handle_args_registered_help_text[]
+#       _handle_input_register_help_text()
+#       _validate_input_register_help_text()
+#   get_help_text()
+#   _handle_args()
+#       _validate_input_handle_args()
+#
+# ##############################################################################
+# ### From below here, you can call the following functions directly in the
+# ### library without being within a function.
+# ### * register_function_flags()
+# ### * register_help_text()
+# ##############################################################################
+#
+#   source_lib()
+#   eval_cmd()
+#       _validate_input_eval_cmd()
+#   error()
+#   warning()
+#   find_path()
+#       _validate_input_find_path()
+#   handle_input_arrays_dynamically()
+#
+#   echo_color()
+#   echo_warning()
+#   echo_error()
+#   echo_highlight()
+#   echo_success()
+#   command_exists()
 ###
 
 # For multiline variable definition
@@ -94,103 +119,67 @@ define()
     eval "$1=\${$1%$'\n'}"
 }
 
-# Sources library and exits with good info in case of not being able to source
-source_lib()
+get_func_def_line_num()
 {
-    local lib="$1"
+    local func_name=$1
+    local script_file=$2
 
-    local func_call_file
-    func_call_file="$(basename "${BASH_SOURCE[1]}")"
+    local output_num
 
-    local error_info
-    error_info="File '$func_call_file' requires library '$(basename "$lib")'"
+    output_num=$(grep -c "^[\s]*${func_name}()" $script_file)
+    (( output_num == 1 )) || { echo '?'; return 1; }
 
-    if ! [[ -f "$lib" ]]
-    then
-        echo "$error_info"
-        echo "Necessary library does not exist: '$lib'"
-        exit 1
-    fi
-
-    if ! source "$lib"
-    then
-        echo_error "$error_info"
-        echo_error "Could not source library even though the file exists: '$lib'"
-        exit 1
-    fi
+    grep -n "^[\s]*${func_name}()" $script_file | cut -d: -f1
 }
 
-# Exits and outputs error if command before this fails
-eval_cmd()
+is_short_flag()
 {
-    local exit_code=$?
-    (( exit_code == 0 )) && return
+    local to_check="$1"
 
-    local error_info="$1"
+    [[ -z "$to_check" ]] && return 1
 
-    _validate_input_eval_cmd
+    # Check that it starts with a single hyphen, not double
+    [[ "$to_check" =~ ^-[^-] ]] || return 2
 
-    # Update COLUMNS regardless if shopt checkwinsize is enabled
-    if [[ -c /dev/tty ]]
-    then
-        # Pass /dev/tty to the command as if running as background process, the shell
-        # is not attached to a terminal
-        IFS=' ' read LINES COLUMNS < <(stty size </dev/tty)
-    else
-        COLUMNS=80
-    fi
+    # Check that it has a single character after the hypen
+    [[ "$to_check" =~ ^-[[:alpha:]]$ ]] || return 3
 
-    local wrapper="$(printf "%.s#" $(seq $COLUMNS))"
-    local divider="$(printf "%.s-" $(seq $COLUMNS))"
-
-    define output_message << END_OF_OUTPUT_MESSAGE
-${wrapper}
-!! Command failed with exit code: $exit_code
-
-Check the command executed right before eval_cmd()
-
-${divider}
-Backtrace:
-$(backtrace)
-
-${divider}
-Error info:
-
-${error_info}
-
-${wrapper}
-END_OF_OUTPUT_MESSAGE
-
-    echo "$output_message" >&2
-    exit $exit_code
+    return 0
 }
 
-_validate_input_eval_cmd()
+is_long_flag()
 {
+    local to_check="$1"
 
-    define function_usage <<END_OF_FUNCTION_USAGE
-Usage: eval_cmd <error_info>
+    [[ -z "$to_check" ]] && return 1
 
-Evaluates the previous command's exit code. If non-zero, it will output the
-given <error_info> as well as function backtrace. Exits with the same exit code
-as the previous command.
+    [[ "$to_check" =~ ^-- ]] || return 2
 
-<error_info>: String with information about what command that failed.
+    # TODO: Update such that we cannot have the long flags '--_', '--__'
+    #       etc.
+    get_long_flag_var_name "$to_check" &>/dev/null || return 3
 
-Example usage:
-    echo hello
-    eval_cmd 'Failed to echo'
-END_OF_FUNCTION_USAGE
+    return 0
+}
 
-    if [[ -z "$error_info" ]]
-    then
-        define error_info <<END_OF_FUNCTION_USAGE
-Input <error_info> not given.
-END_OF_FUNCTION_USAGE
+# Outputs valid variable name if the flag is valid, replaces hyphen with underscore
+get_long_flag_var_name()
+{
+    local long_flag="${1#--}" # Remove initial --
 
-        invalid_function_usage 2 "$function_usage" "$error_info"
-        exit 1
-    fi
+    grep -q '^[[:alpha:]][-[:alpha:][:digit:]]*$' <<< "$long_flag" || return 1
+
+    # Replace hyphens with underscore
+    local var_name=$(sed 's/-/_/g' <<< "$long_flag")
+
+    valid_var_name "$var_name" || return 1
+
+    echo "$var_name"
+}
+
+valid_var_name()
+{
+    grep -q '^[_[:alpha:]][_[:alpha:][:digit:]]*$' <<< "$1"
 }
 
 backtrace()
@@ -324,60 +313,6 @@ EOM
     done
 
     echo "$backtrace_output"
-}
-
-invalid_function_usage()
-{
-    # functions_before=1 represents the function call before this function
-    local functions_before=$1
-    local function_id_or_usage="$2"
-    local error_info="$3"
-
-    local func_name="${FUNCNAME[functions_before]}"
-
-    local start_output_message
-    start_output_message="!! Invalid usage of ${func_name}()"
-
-    _error_call "$((functions_before + 1))" \
-                "$function_id_or_usage" \
-                "$error_info" \
-                "$start_output_message"
-}
-
-error()
-{
-    # functions_before=1 represents the function call before this function
-    local functions_before=$1
-    local function_id_or_usage="$2"
-    local error_info="$3"
-
-    local func_name="${FUNCNAME[functions_before]}"
-
-    local start_output_message
-    start_output_message="!! Error in ${func_name}()"
-
-    _error_call "$((functions_before + 1))" \
-                "$function_id_or_usage" \
-                "$error_info" \
-                "$start_output_message"
-}
-
-warning()
-{
-    # functions_before=1 represents the function call before this function
-    local functions_before=$1
-    local function_id_or_usage="$2"
-    local error_info="$3"
-
-    local func_name="${FUNCNAME[functions_before]}"
-
-    local start_output_message
-    start_output_message="!! Warning in ${func_name}()"
-
-    _error_call "$((functions_before + 1))" \
-                "$function_id_or_usage" \
-                "$error_info" \
-                "$start_output_message"
 }
 
 _error_call()
@@ -528,129 +463,23 @@ END_OF_VARIABLE_WITHOUT_EVAL
     fi
 }
 
-# Only store output in multi-file unique readonly global variables or
-# local variables to avoid variable values being overwritten in e.g.
-# sourced library files.
-# Recommended to always call the function when to use it
-find_path()
+invalid_function_usage()
 {
-    local to_find="$1"
-    local bash_source_array_len="$2"
-    shift 2
-    local bash_source_array=("$@")
+    # functions_before=1 represents the function call before this function
+    local functions_before=$1
+    local function_id_or_usage="$2"
+    local error_info="$3"
 
-    _validate_input_find_path
+    local func_name="${FUNCNAME[functions_before]}"
 
-    # Set 'source' to resolve until not a symlink
-    case "$to_find" in
-        'this'|'this_file')
-            local file=${bash_source_array[0]}
-            ;;
-        'last_exec'|'last_exec_file')
-            local file=${bash_source_array[-1]}
-            ;;
-        *)  # Validation already done
-    esac
+    local start_output_message
+    start_output_message="!! Invalid usage of ${func_name}()"
 
-    local path file
-    while [ -L "$file" ]; do # resolve until the file is no longer a symlink
-        path=$( cd -P "$( dirname "$file" )" &>/dev/null && pwd )
-        file=$(readlink "$file")
-        # If $file was a relative symlink, we need to resolve it relative
-        # to the path where the symlink file was located
-        [[ $file != /* ]] && file=$path/$file
-    done
-    path=$( cd -P "$( dirname "$file" )" &>/dev/null && pwd )
-    file="$path/$(basename "$file")"
-
-    case "$to_find" in
-    'this'|'last_exec')
-        echo "$path"
-        ;;
-    'this_file'|'last_exec_file')
-        echo "$file"
-        ;;
-    *)  # Validation already done
-        ;;
-    esac
+    _error_call "$((functions_before + 1))" \
+                "$function_id_or_usage" \
+                "$error_info" \
+                "$start_output_message"
 }
-
-_validate_input_find_path()
-{
-    define function_usage <<'END_OF_FUNCTION_USAGE'
-Usage: find_path <to_find> <bash_source_array_len> <bash_source_array>
-    <to_find>:
-        * 'this'
-            - Path to this file
-        * 'this_file'
-            - Path and filename to this file
-        * 'last_exec'
-            - Path to the latest executed script
-            - Example:
-                main.sh sources script_1.bash
-                script_1.sh executes script_2.sh
-                script_2.sh sources  script_3.sh
-                script_3.sh calls find_path()
-                find_path() outputs path to script_2.bash
-        * 'last_exec_file'
-            - Path and filename to the latest executed script
-            - Example:
-                main.sh sources script_1.bash
-                script_1.sh executes script_2.sh
-                script_2.sh sources  script_3.sh
-                script_3.sh calls find_path()
-                find_path() outputs path & filname to script_2.bash
-    <bash_source_array_len>:
-        - Length of ${BASH_SOURCE[@]}
-        - "${#BASH_SOURCE[@]}"
-    <bash_source_array>:
-        - Actual array
-        - "${BASH_SOURCE[@]}"
-END_OF_FUNCTION_USAGE
-
-    # Validate <to_find>
-    case "$to_find" in
-        'this'|'this_file'|'last_exec'|'last_exec_file')
-            ;;
-        *)
-            define error_info <<END_OF_ERROR_INFO
-Invalid input <to_find>: '$to_find'
-END_OF_ERROR_INFO
-            invalid_function_usage 2 "$function_usage" "$error_info"
-            exit 1
-            ;;
-    esac
-
-    # Validate <bash_source_array_len>
-    case $bash_source_array_len in
-        ''|*[!0-9]*)
-define error_info <<END_OF_ERROR_INFO
-Invalid input <bash_source_array_len>, not a number: '$bash_source_array_len'
-END_OF_ERROR_INFO
-            invalid_function_usage 2 "$function_usage" "$error_info"
-            exit 1
-            ;;
-        *)  ;;
-    esac
-
-    # Validate <bash_source_array>
-    # Use 'bash_source_array_len' to ensure the actual ${BASH_SOURCE[@]} array
-    # was passed to the function
-    if (( bash_source_array_len != ${#bash_source_array[@]} ))
-    then
-define error_info <<END_OF_ERROR_INFO
-Given length <bash_source_array_len> differs from array length of <bash_source_array>.
-    \$bash_source_array_len:   '$bash_source_array_len'
-    \${#bash_source_array[@]}: '${#bash_source_array[@]}'
-END_OF_ERROR_INFO
-
-        invalid_function_usage 2 "$function_usage" "$error_info"
-        exit 1
-    fi
-
-    unset function_usage error_info
-}
-
 
 # Arrays to store _handle_args() data
 _handle_args_registered_function_ids=()
@@ -861,6 +690,7 @@ END_OF_FUNCTION_USAGE
         return 1
     fi
 }
+
 
 # Arrays to store _handle_args() help text data
 _handle_args_registered_help_text_function_ids=()
@@ -1273,6 +1103,264 @@ END_OF_ERROR_INFO
     fi
 }
 
+# Sources library and exits with good info in case of not being able to source
+source_lib()
+{
+    local lib="$1"
+
+    local func_call_file
+    func_call_file="$(basename "${BASH_SOURCE[1]}")"
+
+    local error_info
+    error_info="File '$func_call_file' requires library '$(basename "$lib")'"
+
+    if ! [[ -f "$lib" ]]
+    then
+        echo "$error_info"
+        echo "Necessary library does not exist: '$lib'"
+        exit 1
+    fi
+
+    if ! source "$lib"
+    then
+        echo_error "$error_info"
+        echo_error "Could not source library even though the file exists: '$lib'"
+        exit 1
+    fi
+}
+
+# Exits and outputs error if command before this fails
+eval_cmd()
+{
+    local exit_code=$?
+    (( exit_code == 0 )) && return
+
+    local error_info="$1"
+
+    _validate_input_eval_cmd
+
+    # Update COLUMNS regardless if shopt checkwinsize is enabled
+    if [[ -c /dev/tty ]]
+    then
+        # Pass /dev/tty to the command as if running as background process, the shell
+        # is not attached to a terminal
+        IFS=' ' read LINES COLUMNS < <(stty size </dev/tty)
+    else
+        COLUMNS=80
+    fi
+
+    local wrapper="$(printf "%.s#" $(seq $COLUMNS))"
+    local divider="$(printf "%.s-" $(seq $COLUMNS))"
+
+    define output_message << END_OF_OUTPUT_MESSAGE
+${wrapper}
+!! Command failed with exit code: $exit_code
+
+Check the command executed right before eval_cmd()
+
+${divider}
+Backtrace:
+$(backtrace)
+
+${divider}
+Error info:
+
+${error_info}
+
+${wrapper}
+END_OF_OUTPUT_MESSAGE
+
+    echo "$output_message" >&2
+    exit $exit_code
+}
+
+_validate_input_eval_cmd()
+{
+
+    define function_usage <<END_OF_FUNCTION_USAGE
+Usage: eval_cmd <error_info>
+
+Evaluates the previous command's exit code. If non-zero, it will output the
+given <error_info> as well as function backtrace. Exits with the same exit code
+as the previous command.
+
+<error_info>: String with information about what command that failed.
+
+Example usage:
+    echo hello
+    eval_cmd 'Failed to echo'
+END_OF_FUNCTION_USAGE
+
+    if [[ -z "$error_info" ]]
+    then
+        define error_info <<END_OF_FUNCTION_USAGE
+Input <error_info> not given.
+END_OF_FUNCTION_USAGE
+
+        invalid_function_usage 2 "$function_usage" "$error_info"
+        exit 1
+    fi
+}
+
+error()
+{
+    # functions_before=1 represents the function call before this function
+    local functions_before=$1
+    local function_id_or_usage="$2"
+    local error_info="$3"
+
+    local func_name="${FUNCNAME[functions_before]}"
+
+    local start_output_message
+    start_output_message="!! Error in ${func_name}()"
+
+    _error_call "$((functions_before + 1))" \
+                "$function_id_or_usage" \
+                "$error_info" \
+                "$start_output_message"
+}
+
+warning()
+{
+    # functions_before=1 represents the function call before this function
+    local functions_before=$1
+    local function_id_or_usage="$2"
+    local error_info="$3"
+
+    local func_name="${FUNCNAME[functions_before]}"
+
+    local start_output_message
+    start_output_message="!! Warning in ${func_name}()"
+
+    _error_call "$((functions_before + 1))" \
+                "$function_id_or_usage" \
+                "$error_info" \
+                "$start_output_message"
+}
+
+# Only store output in multi-file unique readonly global variables or
+# local variables to avoid variable values being overwritten in e.g.
+# sourced library files.
+# Recommended to always call the function when to use it
+find_path()
+{
+    local to_find="$1"
+    local bash_source_array_len="$2"
+    shift 2
+    local bash_source_array=("$@")
+
+    _validate_input_find_path
+
+    # Set 'source' to resolve until not a symlink
+    case "$to_find" in
+        'this'|'this_file')
+            local file=${bash_source_array[0]}
+            ;;
+        'last_exec'|'last_exec_file')
+            local file=${bash_source_array[-1]}
+            ;;
+        *)  # Validation already done
+    esac
+
+    local path file
+    while [ -L "$file" ]; do # resolve until the file is no longer a symlink
+        path=$( cd -P "$( dirname "$file" )" &>/dev/null && pwd )
+        file=$(readlink "$file")
+        # If $file was a relative symlink, we need to resolve it relative
+        # to the path where the symlink file was located
+        [[ $file != /* ]] && file=$path/$file
+    done
+    path=$( cd -P "$( dirname "$file" )" &>/dev/null && pwd )
+    file="$path/$(basename "$file")"
+
+    case "$to_find" in
+    'this'|'last_exec')
+        echo "$path"
+        ;;
+    'this_file'|'last_exec_file')
+        echo "$file"
+        ;;
+    *)  # Validation already done
+        ;;
+    esac
+}
+
+_validate_input_find_path()
+{
+    define function_usage <<'END_OF_FUNCTION_USAGE'
+Usage: find_path <to_find> <bash_source_array_len> <bash_source_array>
+    <to_find>:
+        * 'this'
+            - Path to this file
+        * 'this_file'
+            - Path and filename to this file
+        * 'last_exec'
+            - Path to the latest executed script
+            - Example:
+                main.sh sources script_1.bash
+                script_1.sh executes script_2.sh
+                script_2.sh sources  script_3.sh
+                script_3.sh calls find_path()
+                find_path() outputs path to script_2.bash
+        * 'last_exec_file'
+            - Path and filename to the latest executed script
+            - Example:
+                main.sh sources script_1.bash
+                script_1.sh executes script_2.sh
+                script_2.sh sources  script_3.sh
+                script_3.sh calls find_path()
+                find_path() outputs path & filname to script_2.bash
+    <bash_source_array_len>:
+        - Length of ${BASH_SOURCE[@]}
+        - "${#BASH_SOURCE[@]}"
+    <bash_source_array>:
+        - Actual array
+        - "${BASH_SOURCE[@]}"
+END_OF_FUNCTION_USAGE
+
+    # Validate <to_find>
+    case "$to_find" in
+        'this'|'this_file'|'last_exec'|'last_exec_file')
+            ;;
+        *)
+            define error_info <<END_OF_ERROR_INFO
+Invalid input <to_find>: '$to_find'
+END_OF_ERROR_INFO
+            invalid_function_usage 2 "$function_usage" "$error_info"
+            exit 1
+            ;;
+    esac
+
+    # Validate <bash_source_array_len>
+    case $bash_source_array_len in
+        ''|*[!0-9]*)
+define error_info <<END_OF_ERROR_INFO
+Invalid input <bash_source_array_len>, not a number: '$bash_source_array_len'
+END_OF_ERROR_INFO
+            invalid_function_usage 2 "$function_usage" "$error_info"
+            exit 1
+            ;;
+        *)  ;;
+    esac
+
+    # Validate <bash_source_array>
+    # Use 'bash_source_array_len' to ensure the actual ${BASH_SOURCE[@]} array
+    # was passed to the function
+    if (( bash_source_array_len != ${#bash_source_array[@]} ))
+    then
+define error_info <<END_OF_ERROR_INFO
+Given length <bash_source_array_len> differs from array length of <bash_source_array>.
+    \$bash_source_array_len:   '$bash_source_array_len'
+    \${#bash_source_array[@]}: '${#bash_source_array[@]}'
+END_OF_ERROR_INFO
+
+        invalid_function_usage 2 "$function_usage" "$error_info"
+        exit 1
+    fi
+
+    unset function_usage error_info
+}
+
 # Used for handling arrays as function parameters
 # Creates dynamic arrays from the input
 # 1: Dynamic array name prefix e.g. 'input_arr'
@@ -1313,69 +1401,6 @@ handle_input_arrays_dynamically()
         done
         ((array_suffix++))
     done
-}
-
-get_func_def_line_num()
-{
-    local func_name=$1
-    local script_file=$2
-
-    local output_num
-
-    output_num=$(grep -c "^[\s]*${func_name}()" $script_file)
-    (( output_num == 1 )) || { echo '?'; return 1; }
-
-    grep -n "^[\s]*${func_name}()" $script_file | cut -d: -f1
-}
-
-is_short_flag()
-{
-    local to_check="$1"
-
-    [[ -z "$to_check" ]] && return 1
-
-    # Check that it starts with a single hyphen, not double
-    [[ "$to_check" =~ ^-[^-] ]] || return 2
-
-    # Check that it has a single character after the hypen
-    [[ "$to_check" =~ ^-[[:alpha:]]$ ]] || return 3
-
-    return 0
-}
-
-is_long_flag()
-{
-    local to_check="$1"
-
-    [[ -z "$to_check" ]] && return 1
-
-    [[ "$to_check" =~ ^-- ]] || return 2
-
-    # TODO: Update such that we cannot have the long flags '--_', '--__'
-    #       etc.
-    get_long_flag_var_name "$to_check" &>/dev/null || return 3
-
-    return 0
-}
-
-# Outputs valid variable name if the flag is valid, replaces hyphen with underscore
-get_long_flag_var_name()
-{
-    local long_flag="${1#--}" # Remove initial --
-
-    grep -q '^[[:alpha:]][-[:alpha:][:digit:]]*$' <<< "$long_flag" || return 1
-
-    # Replace hyphens with underscore
-    local var_name=$(sed 's/-/_/g' <<< "$long_flag")
-
-    valid_var_name "$var_name" || return 1
-
-    echo "$var_name"
-}
-
-valid_var_name()
-{
-    grep -q '^[_[:alpha:]][_[:alpha:][:digit:]]*$' <<< "$1"
 }
 
 echo_color()
