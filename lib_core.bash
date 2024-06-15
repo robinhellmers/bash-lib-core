@@ -49,6 +49,8 @@ COLOR_BOLD_WHITE='\033[1;37m'
 #
 # - define()
 #
+# - invalid_function_usage()
+#
 # - register_function_flags()
 # - register_help_text()
 # - get_help_text()
@@ -57,7 +59,6 @@ COLOR_BOLD_WHITE='\033[1;37m'
 # - source_lib()
 # - eval_cmd()
 # - backtrace()
-# - invalid_function_usage()
 # - error()
 # - warning()
 # - find_path()
@@ -96,6 +97,23 @@ define()
     eval "$1=\${$1%$'\n'}"
 }
 
+invalid_function_usage()
+{
+    # functions_before=1 represents the function call before this function
+    local functions_before=$1
+    local function_id_or_usage="$2"
+    local error_info="$3"
+
+    local func_name="${FUNCNAME[functions_before]}"
+
+    local start_output_message
+    start_output_message="!! Invalid usage of ${func_name}()"
+
+    _error_call "$((functions_before + 1))" \
+                "$function_id_or_usage" \
+                "$error_info" \
+                "$start_output_message"
+}
 
 # Arrays to store _handle_args() data
 _handle_args_registered_function_ids=()
@@ -951,23 +969,6 @@ EOM
     echo "$backtrace_output"
 }
 
-invalid_function_usage()
-{
-    # functions_before=1 represents the function call before this function
-    local functions_before=$1
-    local function_id_or_usage="$2"
-    local error_info="$3"
-
-    local func_name="${FUNCNAME[functions_before]}"
-
-    local start_output_message
-    start_output_message="!! Invalid usage of ${func_name}()"
-
-    _error_call "$((functions_before + 1))" \
-                "$function_id_or_usage" \
-                "$error_info" \
-                "$start_output_message"
-}
 
 error()
 {
