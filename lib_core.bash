@@ -514,7 +514,15 @@ END_OF_EXTRA_INFO
 
 _get_func_info()
 {
-    : # Stub
+    local functions_before="$1"
+
+    ((functions_before++))
+
+    func_name="${FUNCNAME[functions_before]}"
+    func_def_file="${BASH_SOURCE[functions_before]}"
+    func_def_line_num="$(get_func_def_line_num $func_name $func_def_file)"
+    func_call_file="${BASH_SOURCE[functions_before + 1]}"
+    func_call_line_num="${BASH_LINENO[functions_before]}"
 }
 
 _create_wrapper_divider()
