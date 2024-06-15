@@ -49,6 +49,7 @@ COLOR_BOLD_WHITE='\033[1;37m'
 #
 # - define()
 #
+# - backtrace()
 # - _error_call()
 # - invalid_function_usage()
 #
@@ -59,7 +60,6 @@ COLOR_BOLD_WHITE='\033[1;37m'
 #
 # - source_lib()
 # - eval_cmd()
-# - backtrace()
 # - error()
 # - warning()
 # - find_path()
@@ -96,6 +96,139 @@ define()
     IFS= read -r -d '' "$1" || true
     # Remove the trailing newline
     eval "$1=\${$1%$'\n'}"
+}
+
+backtrace()
+{
+    local level_function_callstack=$1
+
+    # How much to include in function call stack
+    # 0 - includes backtrace()
+    # 1 - includes the function calling backtrace()
+    # 2 - includes 2 function above backtrace()
+    local default_level_function_callstack=1
+
+    local re='^[0-9]+$'
+    [[ $level_function_callstack =~ $re ]] ||
+        level_function_callstack=$default_level_function_callstack
+
+    # Top level function name
+    local top_level_function='main'
+
+    local iter_part
+    local func_name_part
+    local line_num_part
+    local file_part
+    local iter_len
+    local func_name_len
+    local line_num_len
+
+    local at_part="at"
+
+    local iter_part_template
+    local func_name_part_template
+    local line_num_part_template
+    local file_part_template
+
+    define iter_part_template <<'EOM'
+iter_part="#${i}  "
+EOM
+    define func_name_part_template <<'EOM'
+func_name_part="'${FUNCNAME[$i]}' "
+EOM
+    define line_num_part_template <<'EOM'
+line_num_part="  ${BASH_LINENO[$i]}:"
+EOM
+    define file_part_template <<'EOM'
+file_part=" ${BASH_SOURCE[i+1]}"
+EOM
+
+    ### Find max lengths
+    #
+    local i=$level_function_callstack
+    local iter_maxlen=0
+    local func_name_maxlen=0
+    local line_num_maxlen=0
+    until [[ "${FUNCNAME[$i]}" == "$top_level_function" ]]
+    do
+        eval "$iter_part_template"
+        eval "$func_name_part_template"
+        eval "$line_num_part_template"
+        eval "$file_part_template"
+
+        iter_len=$(wc -m <<< "$iter_part")
+        ((iter_len--))
+        func_name_len=$(wc -m <<< "$func_name_part")
+        ((func_name_len--))
+        line_num_len=$(wc -m <<< "$line_num_part")
+        ((line_num_len--))
+
+
+        ((iter_len > iter_maxlen)) && iter_maxlen=$iter_len
+        ((func_name_len > func_name_maxlen)) && func_name_maxlen=$func_name_len
+        ((line_num_len > line_num_maxlen)) && line_num_maxlen=$line_num_len
+
+        ((i++))
+    done
+
+    ### Construct lines with good whitespacing using max lengths
+    #
+    local extra_whitespace
+    local backtrace_output
+    i=$level_function_callstack
+    until [[ "${FUNCNAME[$i]}" == "$top_level_function" ]]
+    do
+        eval "$iter_part_template"
+        eval "$func_name_part_template"
+        eval "$line_num_part_template"
+        eval "$file_part_template"
+
+        iter_len=$(wc -m <<< "$iter_part")
+        ((iter_len--))
+
+        # Check if to add extra whitespace after 'iter_part'
+        if ((iter_len < iter_maxlen))
+        then
+            local iter_difflen=$((iter_maxlen - iter_len))
+            extra_whitespace="$(printf "%.s " $(seq $iter_difflen))"
+            iter_part="${iter_part}${extra_whitespace}"
+        fi
+
+        func_name_len=$(wc -m <<< "$func_name_part")
+        ((func_name_len--))
+
+        # Check if to add extra whitespace after 'func_name_part'
+        if ((func_name_len < func_name_maxlen))
+        then
+            local func_name_difflen=$((func_name_maxlen - func_name_len))
+            extra_whitespace="$(printf "%.s " $(seq $func_name_difflen))"
+            func_name_part="${func_name_part}${extra_whitespace}"
+        fi
+
+        line_num_len=$(wc -m <<< "$line_num_part")
+        ((line_num_len--))
+
+        # Check if to add extra whitespace before 'line_num_part'
+        if ((line_num_len < line_num_maxlen))
+        then
+            local line_num_difflen=$((line_num_maxlen - line_num_len))
+            extra_whitespace="$(printf "%.s " $(seq $line_num_difflen))"
+            line_num_part="${extra_whitespace}${line_num_part}"
+        fi
+
+        local line="${iter_part}${func_name_part}${at_part}${line_num_part}${file_part}"
+
+        if [[ -z "$backtrace_output" ]]
+        then
+            # Before backtrace_output is defined
+            backtrace_output="$line"
+        else
+            printf -v backtrace_output "%s\n${line}" "$backtrace_output"
+        fi
+        ((i++))
+    done
+
+    echo "$backtrace_output"
 }
 
 _error_call()
@@ -984,140 +1117,6 @@ END_OF_FUNCTION_USAGE
         exit 1
     fi
 }
-
-backtrace()
-{
-    local level_function_callstack=$1
-
-    # How much to include in function call stack
-    # 0 - includes backtrace()
-    # 1 - includes the function calling backtrace()
-    # 2 - includes 2 function above backtrace()
-    local default_level_function_callstack=1
-
-    local re='^[0-9]+$'
-    [[ $level_function_callstack =~ $re ]] ||
-        level_function_callstack=$default_level_function_callstack
-
-    # Top level function name
-    local top_level_function='main'
-
-    local iter_part
-    local func_name_part
-    local line_num_part
-    local file_part
-    local iter_len
-    local func_name_len
-    local line_num_len
-
-    local at_part="at"
-
-    local iter_part_template
-    local func_name_part_template
-    local line_num_part_template
-    local file_part_template
-
-    define iter_part_template <<'EOM'
-iter_part="#${i}  "
-EOM
-    define func_name_part_template <<'EOM'
-func_name_part="'${FUNCNAME[$i]}' "
-EOM
-    define line_num_part_template <<'EOM'
-line_num_part="  ${BASH_LINENO[$i]}:"
-EOM
-    define file_part_template <<'EOM'
-file_part=" ${BASH_SOURCE[i+1]}"
-EOM
-
-    ### Find max lengths
-    #
-    local i=$level_function_callstack
-    local iter_maxlen=0
-    local func_name_maxlen=0
-    local line_num_maxlen=0
-    until [[ "${FUNCNAME[$i]}" == "$top_level_function" ]]
-    do
-        eval "$iter_part_template"
-        eval "$func_name_part_template"
-        eval "$line_num_part_template"
-        eval "$file_part_template"
-
-        iter_len=$(wc -m <<< "$iter_part")
-        ((iter_len--))
-        func_name_len=$(wc -m <<< "$func_name_part")
-        ((func_name_len--))
-        line_num_len=$(wc -m <<< "$line_num_part")
-        ((line_num_len--))
-
-
-        ((iter_len > iter_maxlen)) && iter_maxlen=$iter_len
-        ((func_name_len > func_name_maxlen)) && func_name_maxlen=$func_name_len
-        ((line_num_len > line_num_maxlen)) && line_num_maxlen=$line_num_len
-
-        ((i++))
-    done
-
-    ### Construct lines with good whitespacing using max lengths
-    #
-    local extra_whitespace
-    local backtrace_output
-    i=$level_function_callstack
-    until [[ "${FUNCNAME[$i]}" == "$top_level_function" ]]
-    do
-        eval "$iter_part_template"
-        eval "$func_name_part_template"
-        eval "$line_num_part_template"
-        eval "$file_part_template"
-
-        iter_len=$(wc -m <<< "$iter_part")
-        ((iter_len--))
-
-        # Check if to add extra whitespace after 'iter_part'
-        if ((iter_len < iter_maxlen))
-        then
-            local iter_difflen=$((iter_maxlen - iter_len))
-            extra_whitespace="$(printf "%.s " $(seq $iter_difflen))"
-            iter_part="${iter_part}${extra_whitespace}"
-        fi
-
-        func_name_len=$(wc -m <<< "$func_name_part")
-        ((func_name_len--))
-
-        # Check if to add extra whitespace after 'func_name_part'
-        if ((func_name_len < func_name_maxlen))
-        then
-            local func_name_difflen=$((func_name_maxlen - func_name_len))
-            extra_whitespace="$(printf "%.s " $(seq $func_name_difflen))"
-            func_name_part="${func_name_part}${extra_whitespace}"
-        fi
-
-        line_num_len=$(wc -m <<< "$line_num_part")
-        ((line_num_len--))
-
-        # Check if to add extra whitespace before 'line_num_part'
-        if ((line_num_len < line_num_maxlen))
-        then
-            local line_num_difflen=$((line_num_maxlen - line_num_len))
-            extra_whitespace="$(printf "%.s " $(seq $line_num_difflen))"
-            line_num_part="${extra_whitespace}${line_num_part}"
-        fi
-
-        local line="${iter_part}${func_name_part}${at_part}${line_num_part}${file_part}"
-
-        if [[ -z "$backtrace_output" ]]
-        then
-            # Before backtrace_output is defined
-            backtrace_output="$line"
-        else
-            printf -v backtrace_output "%s\n${line}" "$backtrace_output"
-        fi
-        ((i++))
-    done
-
-    echo "$backtrace_output"
-}
-
 
 error()
 {
