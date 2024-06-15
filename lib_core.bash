@@ -47,36 +47,43 @@ COLOR_BOLD_WHITE='\033[1;37m'
 ###
 # List of functions for usage outside of lib
 #
-# - define()
+#   define()
 #
-# - get_func_def_line_num()
-# - is_short_flag()
-# - is_long_flag()
-# - get_long_flag_var_name()
-# - valid_var_name()
+#   get_func_def_line_num()
+#   is_short_flag()
+#   is_long_flag()
+#   get_long_flag_var_name()
+#   valid_var_name()
 #
-# - backtrace()
-# - _error_call()
-# - invalid_function_usage()
+#   backtrace()
+#   _error_call()
+#   invalid_function_usage()
 #
-# - register_function_flags()
-# - register_help_text()
-# - get_help_text()
-# - _handle_args()
+#   register_function_flags()
+#   register_help_text()
+#   get_help_text()
+#   _handle_args()
 #
-# - source_lib()
-# - eval_cmd()
-# - error()
-# - warning()
-# - find_path()
-# - handle_input_arrays_dynamically()
+# ##############################################################################
+# ### From below here, you can call the following functions directly in the
+# ### library without being within a function.
+# ### * register_function_flags()
+# ### * register_help_text()
+# ##############################################################################
 #
-# - echo_color()
-# - echo_warning()
-# - echo_error()
-# - echo_highlight()
-# - echo_success()
-# - command_exists()
+#   source_lib()
+#   eval_cmd()
+#   error()
+#   warning()
+#   find_path()
+#   handle_input_arrays_dynamically()
+#
+#   echo_color()
+#   echo_warning()
+#   echo_error()
+#   echo_highlight()
+#   echo_success()
+#   command_exists()
 ###
 
 # For multiline variable definition
