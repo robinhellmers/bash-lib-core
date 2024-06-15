@@ -48,6 +48,9 @@ COLOR_BOLD_WHITE='\033[1;37m'
 # List of functions for usage outside of lib
 #
 # - define()
+#
+# - register_function_flags()
+#
 # - source_lib()
 # - eval_cmd()
 # - backtrace()
@@ -55,7 +58,6 @@ COLOR_BOLD_WHITE='\033[1;37m'
 # - error()
 # - warning()
 # - find_path()
-# - register_function_flags()
 # - register_help_text()
 # - get_help_text()
 # - _handle_args()
@@ -92,6 +94,217 @@ define()
     IFS= read -r -d '' "$1" || true
     # Remove the trailing newline
     eval "$1=\${$1%$'\n'}"
+}
+
+
+# Arrays to store _handle_args() data
+_handle_args_registered_function_ids=()
+_handle_args_registered_function_short_option=()
+_handle_args_registered_function_long_option=()
+_handle_args_registered_function_values=()
+
+# Register valid flags for a function
+register_function_flags()
+{
+    _handle_input_register_function_flags "$1" || return
+
+    local function_id="$1"
+    shift
+
+    if [[ -z "$function_id" ]]
+    then
+        define error_info <<END_OF_ERROR_INFO
+Given <function_id> is empty.
+END_OF_ERROR_INFO
+        invalid_function_usage 1 "$function_usage" "$error_info"
+        exit 1
+    fi
+
+    # Check if function id already registered
+    for registered in "${_handle_args_registered_function_ids[@]}"
+    do
+        if [[ "$function_id" == "$registered" ]]
+        then
+            define error_info <<END_OF_ERROR_INFO
+Given <function_id> is already registered: '$function_id'
+END_OF_ERROR_INFO
+            invalid_function_usage 1 "$function_usage" "$error_info"
+            exit 1
+        fi
+    done
+
+    local short_option=()
+    local long_option=()
+    local expect_value=()
+    local description=()
+    while (( $# > 1 ))
+    do
+        local input_short_flag="$1"
+        local input_long_flag="$2"
+        local input_expect_value="$3"
+        local input_description="$4"
+
+        if [[ -z "$input_short_flag" ]] && [[ -z "$input_long_flag"  ]]
+        then
+            define error_info <<END_OF_ERROR_INFO
+Neither short or long flag were given for <function_id>: '$function_id'
+END_OF_ERROR_INFO
+            invalid_function_usage 1 "$function_usage" "$error_info"
+            exit 1
+        fi
+
+        if ! is_short_flag "$input_short_flag"
+        then
+            local flag_exit_code=$?
+
+            case $flag_exit_code in
+                1)  ;; # Input flag empty
+                2)
+                    define error_info <<END_OF_ERROR_INFO
+Invalid short flag format: '$input_short_flag'
+Must start with a single hyphen '-'
+END_OF_ERROR_INFO
+                    invalid_function_usage 1 "$function_usage" "$error_info"
+                    exit 1
+                    ;;
+                3)
+                    define error_info <<END_OF_ERROR_INFO
+Invalid short flag format: '$input_short_flag'
+Must have exactly a single letter after the hyphen '-'
+END_OF_ERROR_INFO
+                    invalid_function_usage 1 "$function_usage" "$error_info"
+                    exit 1
+                    ;;
+                *)  ;;
+            esac
+        fi
+
+        # Validate long flag format, if not empty
+        if ! is_long_flag "$input_long_flag"
+        then
+            local flag_exit_code=$?
+
+            case $flag_exit_code in
+                1)  ;; # Input flag empty
+                2)
+                    define error_info <<END_OF_ERROR_INFO
+Invalid long flag format: '$input_long_flag'
+Must start with double hyphen '--'
+END_OF_ERROR_INFO
+                    invalid_function_usage 1 "$function_usage" "$error_info"
+                    exit 1
+                    ;;
+                3)
+                    define error_info <<END_OF_ERROR_INFO
+Invalid long flag format: '$input_long_flag'
+Characters after '--' must start with a letter or underscore and can only
+contain letters, numbers and underscores thereafter.
+END_OF_ERROR_INFO
+                    invalid_function_usage 1 "$function_usage" "$error_info"
+                    exit 1
+                    ;;
+                *)  ;;
+            esac
+        fi
+
+        # Check if 'input_expect_value' was given
+        if [[ -z "$input_expect_value" ]]
+        then
+            define error_info << END_OF_ERROR_INFO
+Missing input 'expect_value'
+Must have the value of 'true' or 'false'.
+END_OF_ERROR_INFO
+            invalid_function_usage 1 "$function_usage" "$error_info"
+            exit 1
+        elif [[ "$input_expect_value" != 'true' && "$input_expect_value" != 'false' ]]
+        then
+            define error_info << END_OF_ERROR_INFO
+Invalid 'expect_value': '$input_expect_value'
+Must have the value of 'true' or 'false'.
+END_OF_ERROR_INFO
+            invalid_function_usage 1 "$function_usage" "$error_info"
+            exit 1
+        fi
+
+        # Check if 'input_description' was given
+        if [[ -z "$input_description" ]]
+        then
+            local flag_indicator
+            if [[ -n "$input_long_flag" ]]
+            then
+                flag_indicator="$input_long_flag"
+            else
+                flag_indicator="$input_short_flag"
+            fi
+
+            define error_info << END_OF_ERROR_INFO
+Missing input 'description' for flag '$flag_indicator'
+END_OF_ERROR_INFO
+            invalid_function_usage 1 "$function_usage" "$error_info"
+            exit 1
+        fi
+
+        [[ -z "$input_short_flag" ]] && short_option+=("_") || short_option+=("$1")
+        [[ -z "$input_long_flag" ]] && long_option+=("_") || long_option+=("$2")
+
+        expect_value+=("$input_expect_value")
+        description+=("$input_description")
+
+        shift 4
+    done
+
+    ### Append to global arrays
+    #
+    # [*] used to save all '§' separated at the same index, to map all options
+    # to the same registered function name
+    local old_IFS="$IFS"
+    IFS='§'
+    _handle_args_registered_function_ids+=("$function_id")
+    _handle_args_registered_function_short_option+=("${short_option[*]}")
+    _handle_args_registered_function_long_option+=("${long_option[*]}")
+    _handle_args_registered_function_values+=("${expect_value[*]}")
+    _handle_args_registered_function_descriptions+=("${description[*]}")
+    IFS="$old_IFS"
+}
+
+_handle_input_register_function_flags()
+{
+        define function_usage <<END_OF_FUNCTION_USAGE
+Usage: register_function_flags <function_id> \
+                               <short_flag_1> <long_flag_1> <expect_value_1> <description_1> \
+                               <short_flag_2> <long_flag_2> <expect_value_2> <description_2> \
+                               ...
+    Registers how many function flags as you want, always in a set of 4 input
+    arguments: <short_flag> <long_flag> <expect_value> <description>
+
+    Either of <short_flag> or <long_flag> can be empty, but must then be entered
+    as an empty string "".
+
+    <function_id>:
+        * Each function can have its own set of flags. The function id is used
+          for identifying which flags to parse and how to parse them.
+            - Function id can e.g. be the function name.
+    <short_flag_#>:
+        * Single dash flag.
+        * E.g. '-e'
+    <long_flag_#>:
+        * Double dash flag
+        * E.g. '--echo'
+    <expect_value_#>:
+        * String boolean which indicates if an associated value is expected
+          after the flag.
+        * 'true' = There shall be a value supplied after the flag
+    <description_#>:
+        * Text description of the flag
+END_OF_FUNCTION_USAGE
+
+
+    # Manual check as _handle_args() cannot be used, creates circular dependency
+    if [[ "$1" == '-h' ]] || [[ "$1" == '--help' ]]
+    then
+        echo "$function_usage"
+        return 1
+    fi
 }
 
 # Sources library and exits with good info in case of not being able to source
@@ -649,217 +862,6 @@ END_OF_ERROR_INFO
     fi
 
     unset function_usage error_info
-}
-
-
-# Arrays to store _handle_args() data
-_handle_args_registered_function_ids=()
-_handle_args_registered_function_short_option=()
-_handle_args_registered_function_long_option=()
-_handle_args_registered_function_values=()
-
-# Register valid flags for a function
-register_function_flags()
-{
-    _handle_input_register_function_flags "$1" || return
-
-    local function_id="$1"
-    shift
-
-    if [[ -z "$function_id" ]]
-    then
-        define error_info <<END_OF_ERROR_INFO
-Given <function_id> is empty.
-END_OF_ERROR_INFO
-        invalid_function_usage 1 "$function_usage" "$error_info"
-        exit 1
-    fi
-
-    # Check if function id already registered
-    for registered in "${_handle_args_registered_function_ids[@]}"
-    do
-        if [[ "$function_id" == "$registered" ]]
-        then
-            define error_info <<END_OF_ERROR_INFO
-Given <function_id> is already registered: '$function_id'
-END_OF_ERROR_INFO
-            invalid_function_usage 1 "$function_usage" "$error_info"
-            exit 1
-        fi
-    done
-
-    local short_option=()
-    local long_option=()
-    local expect_value=()
-    local description=()
-    while (( $# > 1 ))
-    do
-        local input_short_flag="$1"
-        local input_long_flag="$2"
-        local input_expect_value="$3"
-        local input_description="$4"
-
-        if [[ -z "$input_short_flag" ]] && [[ -z "$input_long_flag"  ]]
-        then
-            define error_info <<END_OF_ERROR_INFO
-Neither short or long flag were given for <function_id>: '$function_id'
-END_OF_ERROR_INFO
-            invalid_function_usage 1 "$function_usage" "$error_info"
-            exit 1
-        fi
-
-        if ! is_short_flag "$input_short_flag"
-        then
-            local flag_exit_code=$?
-
-            case $flag_exit_code in
-                1)  ;; # Input flag empty
-                2)
-                    define error_info <<END_OF_ERROR_INFO
-Invalid short flag format: '$input_short_flag'
-Must start with a single hyphen '-'
-END_OF_ERROR_INFO
-                    invalid_function_usage 1 "$function_usage" "$error_info"
-                    exit 1
-                    ;;
-                3)
-                    define error_info <<END_OF_ERROR_INFO
-Invalid short flag format: '$input_short_flag'
-Must have exactly a single letter after the hyphen '-'
-END_OF_ERROR_INFO
-                    invalid_function_usage 1 "$function_usage" "$error_info"
-                    exit 1
-                    ;;
-                *)  ;;
-            esac
-        fi
-
-        # Validate long flag format, if not empty
-        if ! is_long_flag "$input_long_flag"
-        then
-            local flag_exit_code=$?
-
-            case $flag_exit_code in
-                1)  ;; # Input flag empty
-                2)
-                    define error_info <<END_OF_ERROR_INFO
-Invalid long flag format: '$input_long_flag'
-Must start with double hyphen '--'
-END_OF_ERROR_INFO
-                    invalid_function_usage 1 "$function_usage" "$error_info"
-                    exit 1
-                    ;;
-                3)
-                    define error_info <<END_OF_ERROR_INFO
-Invalid long flag format: '$input_long_flag'
-Characters after '--' must start with a letter or underscore and can only
-contain letters, numbers and underscores thereafter.
-END_OF_ERROR_INFO
-                    invalid_function_usage 1 "$function_usage" "$error_info"
-                    exit 1
-                    ;;
-                *)  ;;
-            esac
-        fi
-
-        # Check if 'input_expect_value' was given
-        if [[ -z "$input_expect_value" ]]
-        then
-            define error_info << END_OF_ERROR_INFO
-Missing input 'expect_value'
-Must have the value of 'true' or 'false'.
-END_OF_ERROR_INFO
-            invalid_function_usage 1 "$function_usage" "$error_info"
-            exit 1
-        elif [[ "$input_expect_value" != 'true' && "$input_expect_value" != 'false' ]]
-        then
-            define error_info << END_OF_ERROR_INFO
-Invalid 'expect_value': '$input_expect_value'
-Must have the value of 'true' or 'false'.
-END_OF_ERROR_INFO
-            invalid_function_usage 1 "$function_usage" "$error_info"
-            exit 1
-        fi
-
-        # Check if 'input_description' was given
-        if [[ -z "$input_description" ]]
-        then
-            local flag_indicator
-            if [[ -n "$input_long_flag" ]]
-            then
-                flag_indicator="$input_long_flag"
-            else
-                flag_indicator="$input_short_flag"
-            fi
-
-            define error_info << END_OF_ERROR_INFO
-Missing input 'description' for flag '$flag_indicator'
-END_OF_ERROR_INFO
-            invalid_function_usage 1 "$function_usage" "$error_info"
-            exit 1
-        fi
-
-        [[ -z "$input_short_flag" ]] && short_option+=("_") || short_option+=("$1")
-        [[ -z "$input_long_flag" ]] && long_option+=("_") || long_option+=("$2")
-
-        expect_value+=("$input_expect_value")
-        description+=("$input_description")
-
-        shift 4
-    done
-
-    ### Append to global arrays
-    #
-    # [*] used to save all '§' separated at the same index, to map all options
-    # to the same registered function name
-    local old_IFS="$IFS"
-    IFS='§'
-    _handle_args_registered_function_ids+=("$function_id")
-    _handle_args_registered_function_short_option+=("${short_option[*]}")
-    _handle_args_registered_function_long_option+=("${long_option[*]}")
-    _handle_args_registered_function_values+=("${expect_value[*]}")
-    _handle_args_registered_function_descriptions+=("${description[*]}")
-    IFS="$old_IFS"
-}
-
-_handle_input_register_function_flags()
-{
-        define function_usage <<END_OF_FUNCTION_USAGE
-Usage: register_function_flags <function_id> \
-                               <short_flag_1> <long_flag_1> <expect_value_1> <description_1> \
-                               <short_flag_2> <long_flag_2> <expect_value_2> <description_2> \
-                               ...
-    Registers how many function flags as you want, always in a set of 4 input
-    arguments: <short_flag> <long_flag> <expect_value> <description>
-
-    Either of <short_flag> or <long_flag> can be empty, but must then be entered
-    as an empty string "".
-
-    <function_id>:
-        * Each function can have its own set of flags. The function id is used
-          for identifying which flags to parse and how to parse them.
-            - Function id can e.g. be the function name.
-    <short_flag_#>:
-        * Single dash flag.
-        * E.g. '-e'
-    <long_flag_#>:
-        * Double dash flag
-        * E.g. '--echo'
-    <expect_value_#>:
-        * String boolean which indicates if an associated value is expected
-          after the flag.
-        * 'true' = There shall be a value supplied after the flag
-    <description_#>:
-        * Text description of the flag
-END_OF_FUNCTION_USAGE
-
-
-    # Manual check as _handle_args() cannot be used, creates circular dependency
-    if [[ "$1" == '-h' ]] || [[ "$1" == '--help' ]]
-    then
-        echo "$function_usage"
-        return 1
-    fi
 }
 
 # Arrays to store _handle_args() help text data
