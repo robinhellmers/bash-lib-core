@@ -45,7 +45,7 @@ COLOR_BOLD_WHITE='\033[1;37m'
 ###
 
 ###
-# List of functions for usage outside of lib
+# List of global definitions - Functions, variables, arrays
 #
 #   define()
 #
@@ -57,12 +57,23 @@ COLOR_BOLD_WHITE='\033[1;37m'
 #
 #   backtrace()
 #   _error_call()
+#       _validate_input_error_call()
 #   invalid_function_usage()
 #
 #   register_function_flags()
+#       Array: _handle_args_registered_function_ids[]
+#       Array: _handle_args_registered_function_short_option[]
+#       Array: _handle_args_registered_function_long_option[]
+#       Array: _handle_args_registered_function_values[]
+#       _handle_input_register_function_flags()
 #   register_help_text()
+#       Array: _handle_args_registered_help_text_function_ids[]
+#       Array: _handle_args_registered_help_text[]
+#       _handle_input_register_help_text()
+#       _validate_input_register_help_text()
 #   get_help_text()
 #   _handle_args()
+#       _validate_input_handle_args()
 #
 # ##############################################################################
 # ### From below here, you can call the following functions directly in the
@@ -73,9 +84,11 @@ COLOR_BOLD_WHITE='\033[1;37m'
 #
 #   source_lib()
 #   eval_cmd()
+#       _validate_input_eval_cmd()
 #   error()
 #   warning()
 #   find_path()
+#       _validate_input_find_path()
 #   handle_input_arrays_dynamically()
 #
 #   echo_color()
