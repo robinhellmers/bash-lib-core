@@ -392,7 +392,124 @@ _error_call()
 
 _handle_args_error_call()
 {
-    : # Stub
+    _handle_args '_error_call' "$@"
+
+    #####
+    # Non-flagged arguments
+    functions_before="${non_flagged_args[0]}"
+    function_id="${non_flagged_args[1]}"
+    extra_info="${non_flagged_args[2]}"
+    start_output_message="${non_flagged_args[3]}"
+    #####
+
+    #####
+    # Flags
+    [[ "$no_defined_at_flag" == 'true' ]] &&
+        no_defined_at='true'
+
+    [[ "$no_backtrace_flag" == 'true' ]] &&
+        no_backtrace='true'
+
+    [[ "$no_extra_info_flag" == 'true' ]] &&
+        no_extra_info='true'
+
+    [[ "$no_help_text_flag" == 'true' ]] &&
+        no_help_text='true'
+
+    if [[ "$manual_help_text_flag" == 'true' ]]
+    then
+        manual_help_text='true'
+        help_text="$manual_help_text_flag_value"
+    fi
+    #####
+
+    #####
+    # Validation
+
+    # Output requirements - Defined at
+    if [[ "$no_defined_at" != 'true' ]]
+    then
+        local re='^[0-9]+$'
+        if ! [[ $functions_before =~ $re ]]
+        then
+            invalid_usage_of_this_func='true'
+
+            define extra_info <<END_OF_EXTRA_INFO
+Given input <functions_before> is not a number: '$functions_before'
+END_OF_EXTRA_INFO
+            return 1
+        fi
+    fi
+
+    # Output requirements - Backtrace
+    if [[ "$no_backtrace" != 'true' ]]
+    then
+        local re='^[0-9]+$'
+        if ! [[ $functions_before =~ $re ]]
+        then
+            invalid_usage_of_this_func='true'
+
+            define extra_info <<END_OF_EXTRA_INFO
+Given input <functions_before> is not a number: '$functions_before'
+END_OF_EXTRA_INFO
+            return 1
+        fi
+    fi
+
+    # Output requirements - Extra info
+    if [[ "$no_extra_info" != 'true' ]]
+    then
+        if [[ -z "$extra_info" ]]
+        then
+            invalid_usage_of_this_func='true'
+
+            define extra_info <<END_OF_EXTRA_INFO
+Given input <extra_info> missing.
+END_OF_EXTRA_INFO
+            return 1
+        fi
+    fi
+
+    # Output requirements - Help text
+    if [[ "$no_help_text" != 'true' ]]
+    then
+        if [[ "$manual_help_text" != 'true' ]]
+        then
+            # If no manual help text, <function_id> is expected
+            if [[ -z "$function_id" ]]
+            then
+                invalid_usage_of_this_func='true'
+
+                define extra_info <<END_OF_EXTRA_INFO
+Given input <function_id> missing.
+END_OF_EXTRA_INFO
+                return 1
+            fi
+
+            help_text=$(get_help_text "$function_id")
+
+            local exit_code=$?
+            if (( exit_code != 0 ))
+            then
+                invalid_usage_of_this_func='true'
+                define extra_info <<END_OF_EXTRA_INFO
+No help text registered through 'register_help_text' for given <function_id>: '$function_id'
+END_OF_EXTRA_INFO
+                return 1
+            fi
+        fi
+    fi
+
+    # Output requirements - Start of output message
+    if [[ -z "$start_output_message" ]]
+    then
+        invalid_usage_of_this_func='true'
+        define extra_info <<END_OF_EXTRA_INFO
+Given input <start_output_message> missing.
+END_OF_EXTRA_INFO
+        return 1
+    fi
+    #####
 }
 
 _get_func_info()
@@ -1086,7 +1203,7 @@ END_OF_ERROR_INFO
 #
 # Very important to call both functions for '_error_call' to avoid circular call:
 # - register_function_flags()
-# - register_help_text() 
+# - register_help_text()
 register_function_flags '_error_call' \
                         '' '--no-defined-at' 'false' \
                         "Do not output where the function called function is defined at." \
@@ -1098,13 +1215,13 @@ register_function_flags '_error_call' \
                         "Do not output a function help text" \
                         '' '--manual-help-text' 'true' \
                         "Instead of using '<function_id> to get the help text, give the help text manually."
-                        
+
 
 # For previous _error_call()
 #
 # Very important to call both functions for '_error_call' to avoid circular call:
 # - register_function_flags()
-# - register_help_text() 
+# - register_help_text()
 register_help_text '_error_call' \
 "_error_call <functions_before> <function_id> <extra_info> <start_output_message>
 
