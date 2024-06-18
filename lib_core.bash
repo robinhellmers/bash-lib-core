@@ -632,10 +632,13 @@ END_OF_VARIABLE_WITH_EVAL
 
 invalid_function_usage()
 {
-    # functions_before=1 represents the function call before this function
+    # functions_before=0 represents the function 1 call from this function,
+    #                    that is: The function calling invalid_function_usage()
+    # functions_before=1 represents the function 2 calls from this function
     local functions_before=$1
     local function_id="$2"
     local error_info="$3"
+    shift 3
 
     _validate_input_invalid_function_usage
 
@@ -644,10 +647,12 @@ invalid_function_usage()
     local start_output_message
     start_output_message="!! Invalid usage of ${func_name}()"
 
-    _error_call "$((functions_before + 1))" \
+    _error_call "$((functions_before + 2))" \
                 "$function_id" \
                 "$error_info" \
-                "$start_output_message"
+                "$start_output_message" \
+                --backtrace-level 1 \
+                "$@" # For possible extra flags
 }
 
 _validate_input_invalid_function_usage()
