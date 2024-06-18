@@ -783,10 +783,12 @@ _append_defined_at_output_message()
     define output_message <<END_OF_VARIABLE_WITH_EVAL
 ${output_message}
 ${potentially_divider}
+Function:
+    ${func_name}()
 Called from:
-${func_call_line_num}: ${func_call_file}
+    ${func_call_line_num}: ${func_call_file}
 Defined at:
-${func_def_line_num}: ${func_def_file}
+    ${func_def_line_num}: ${func_def_file}
 
 END_OF_VARIABLE_WITH_EVAL
     potentially_divider="$divider"
