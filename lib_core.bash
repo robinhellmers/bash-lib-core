@@ -1190,7 +1190,7 @@ get_help_text()
 
     ###
     # Output first part of help text
-    echo "Usage: ${registered_help_text}"
+    echo "${registered_help_text}"
 
     [[ "$function_registered" != 'true' ]] && return 0
 
