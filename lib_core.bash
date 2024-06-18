@@ -639,6 +639,8 @@ invalid_function_usage()
 
     _validate_input_invalid_function_usage
 
+    local func_name="${FUNCNAME[functions_before + 1]}"
+
     local start_output_message
     start_output_message="!! Invalid usage of ${func_name}()"
 
