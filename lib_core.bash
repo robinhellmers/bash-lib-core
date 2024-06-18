@@ -634,18 +634,46 @@ invalid_function_usage()
 {
     # functions_before=1 represents the function call before this function
     local functions_before=$1
-    local function_id_or_usage="$2"
+    local function_id="$2"
     local error_info="$3"
 
-    local func_name="${FUNCNAME[functions_before]}"
+    _validate_input_invalid_function_usage
 
     local start_output_message
     start_output_message="!! Invalid usage of ${func_name}()"
 
     _error_call "$((functions_before + 1))" \
-                "$function_id_or_usage" \
+                "$function_id" \
                 "$error_info" \
                 "$start_output_message"
+}
+
+_validate_input_invalid_function_usage()
+{
+    local re='^[0-9]+$'
+    if ! [[ $functions_before =~ $re ]]
+    then
+        local error_info="Given <functions_before> is not a number: '$functions_before'"
+        local functions_before=0
+        local function_id=''
+        local start_output_message="!! Invalid usage of invalid_function_usage()"
+        define help_text <<END_OF_VARIABLE_WITH_EVAL
+invalid_function_usage <functions_before> <function_id> <error_info>
+
+Uses _error_call() and it is possible to pass flags to _error_call(). See help
+text of error_call().
+
+Help text error_call():
+$(get_help_text '_error_call')
+END_OF_VARIABLE_WITH_EVAL
+
+        _error_call "$functions_before" \
+                    "$function_id" \
+                    "$error_info" \
+                    "$start_output_message" \
+                    --manual-help-text "$help_text"
+        exit 1
+    fi
 }
 
 # Arrays to store _handle_args() data
