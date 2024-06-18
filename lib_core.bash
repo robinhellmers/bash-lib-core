@@ -333,6 +333,8 @@ _error_call()
 
     # Flags stored local. Cannot make '<var>_flag' local as it will be unset
     # before stored as global.
+    local backtrace_level_given
+    local backtrace_level
     local no_defined_at
     local no_backtrace
     local no_extra_info
@@ -404,6 +406,12 @@ _handle_args_error_call()
 
     #####
     # Flags
+    if [[ "$backtrace_level_flag" == 'true' ]]
+    then
+        backtrace_level_given='true'
+        backtrace_level="$backtrace_level_flag_value"
+    fi
+
     [[ "$no_defined_at_flag" == 'true' ]] &&
         no_defined_at='true'
 
@@ -444,8 +452,18 @@ END_OF_EXTRA_INFO
     # Output requirements - Backtrace
     if [[ "$no_backtrace" != 'true' ]]
     then
-        local re='^[0-9]+$'
-        if ! [[ $functions_before =~ $re ]]
+        local number_re='^[0-9]+$'
+
+        if [[ "$backtrace_level_given" == 'true' ]]
+        then
+            if ! [[ $backtrace_level =~ $number_re ]]
+            then
+                define extra_info <<END_OF_EXTRA_INFO
+The flag --backtrace-level expects a number after it: '$backtrace_level'
+END_OF_EXTRA_INFO
+                return 1
+            fi
+        elif ! [[ $functions_before =~ $number_re ]]
         then
             invalid_usage_of_this_func='true'
 
@@ -453,6 +471,8 @@ END_OF_EXTRA_INFO
 Given input <functions_before> is not a number: '$functions_before'
 END_OF_EXTRA_INFO
             return 1
+        else
+            backtrace_level="$functions_before"
         fi
     fi
 
@@ -570,7 +590,7 @@ _append_backtrace_output_message()
 ${output_message}
 ${potentially_divider}
 Backtrace:
-$(backtrace $((functions_before + 2)))
+$(backtrace $((backtrace_level + 2)))
 
 END_OF_VARIABLE_WITH_EVAL
     potentially_divider="$divider"
@@ -1263,6 +1283,8 @@ END_OF_ERROR_INFO
 # - register_function_flags()
 # - register_help_text()
 register_function_flags '_error_call' \
+                        '' '--backtrace-level' 'true' \
+                        "<num> - How deep to backtrace function calls. <num> function calls before _error_call()" \
                         '' '--no-defined-at' 'false' \
                         "Do not output where the function called function is defined at." \
                         '' '--no-backtrace' 'false' \
