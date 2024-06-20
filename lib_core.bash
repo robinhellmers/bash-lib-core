@@ -702,7 +702,7 @@ register_function_flags()
         define error_info <<END_OF_ERROR_INFO
 Given <function_id> is empty.
 END_OF_ERROR_INFO
-        invalid_function_usage 1 "$function_usage" "$error_info"
+        invalid_function_usage 0 "" "$error_info" --manual-help-text "$function_usage"
         exit 1
     fi
 
@@ -714,7 +714,7 @@ END_OF_ERROR_INFO
             define error_info <<END_OF_ERROR_INFO
 Given <function_id> is already registered: '$function_id'
 END_OF_ERROR_INFO
-            invalid_function_usage 1 "$function_usage" "$error_info"
+            invalid_function_usage 0 "" "$error_info" --manual-help-text "$function_usage"
             exit 1
         fi
     done
@@ -735,7 +735,7 @@ END_OF_ERROR_INFO
             define error_info <<END_OF_ERROR_INFO
 Neither short or long flag were given for <function_id>: '$function_id'
 END_OF_ERROR_INFO
-            invalid_function_usage 1 "$function_usage" "$error_info"
+            invalid_function_usage 0 "" "$error_info" --manual-help-text "$function_usage"
             exit 1
         fi
 
@@ -750,7 +750,7 @@ END_OF_ERROR_INFO
 Invalid short flag format: '$input_short_flag'
 Must start with a single hyphen '-'
 END_OF_ERROR_INFO
-                    invalid_function_usage 1 "$function_usage" "$error_info"
+                    invalid_function_usage 0 "" "$error_info" --manual-help-text "$function_usage"
                     exit 1
                     ;;
                 3)
@@ -758,7 +758,7 @@ END_OF_ERROR_INFO
 Invalid short flag format: '$input_short_flag'
 Must have exactly a single letter after the hyphen '-'
 END_OF_ERROR_INFO
-                    invalid_function_usage 1 "$function_usage" "$error_info"
+                    invalid_function_usage 0 "" "$error_info" --manual-help-text "$function_usage"
                     exit 1
                     ;;
                 *)  ;;
@@ -777,7 +777,7 @@ END_OF_ERROR_INFO
 Invalid long flag format: '$input_long_flag'
 Must start with double hyphen '--'
 END_OF_ERROR_INFO
-                    invalid_function_usage 1 "$function_usage" "$error_info"
+                    invalid_function_usage 0 "" "$error_info" --manual-help-text "$function_usage"
                     exit 1
                     ;;
                 3)
@@ -786,7 +786,7 @@ Invalid long flag format: '$input_long_flag'
 Characters after '--' must start with a letter or underscore and can only
 contain letters, numbers and underscores thereafter.
 END_OF_ERROR_INFO
-                    invalid_function_usage 1 "$function_usage" "$error_info"
+                    invalid_function_usage 0 "" "$error_info" --manual-help-text "$function_usage"
                     exit 1
                     ;;
                 *)  ;;
@@ -800,7 +800,7 @@ END_OF_ERROR_INFO
 Missing input 'expect_value'
 Must have the value of 'true' or 'false'.
 END_OF_ERROR_INFO
-            invalid_function_usage 1 "$function_usage" "$error_info"
+            invalid_function_usage 0 "" "$error_info" --manual-help-text "$function_usage"
             exit 1
         elif [[ "$input_expect_value" != 'true' && "$input_expect_value" != 'false' ]]
         then
@@ -808,7 +808,7 @@ END_OF_ERROR_INFO
 Invalid 'expect_value': '$input_expect_value'
 Must have the value of 'true' or 'false'.
 END_OF_ERROR_INFO
-            invalid_function_usage 1 "$function_usage" "$error_info"
+            invalid_function_usage 0 "" "$error_info" --manual-help-text "$function_usage"
             exit 1
         fi
 
@@ -826,7 +826,7 @@ END_OF_ERROR_INFO
             define error_info << END_OF_ERROR_INFO
 Missing input 'description' for flag '$flag_indicator'
 END_OF_ERROR_INFO
-            invalid_function_usage 1 "$function_usage" "$error_info"
+            invalid_function_usage 0 "" "$error_info" --manual-help-text "$function_usage"
             exit 1
         fi
 
@@ -946,7 +946,7 @@ _validate_input_register_help_text()
         define error_info <<END_OF_ERROR_INFO
 Given <function_id> is empty.
 END_OF_ERROR_INFO
-        invalid_function_usage 2 "$function_usage" "$error_info"
+        invalid_function_usage 1 "" "$error_info" --manual-help-text "$function_usage"
         exit 1
     fi
 
@@ -958,7 +958,7 @@ END_OF_ERROR_INFO
             define error_info <<END_OF_ERROR_INFO
 Given <function_id> have already registered an help text: '$function_id'
 END_OF_ERROR_INFO
-            invalid_function_usage 2 "$function_usage" "$error_info"
+            invalid_function_usage 1 "" "$error_info" --manual-help-text "$function_usage"
             exit 1
         fi
     done
@@ -968,7 +968,7 @@ END_OF_ERROR_INFO
         define error_info <<END_OF_ERROR_INFO
 Given <help_text> is empty.
 END_OF_ERROR_INFO
-        invalid_function_usage 2 "$function_usage" "$error_info"
+        invalid_function_usage 1 "" "$error_info" --manual-help-text "$function_usage"
         exit 1
     fi
 }
@@ -1165,14 +1165,12 @@ END_OF_FUNCTION_USAGE
             # TODO: Update such that '-' can be used in the flag name
             define error_info << END_OF_ERROR_INFO
 Given long flag have invalid format, cannot create variable name from it: '${arguments[i]}'
+Registered flags through register_function_flags() must follow the valid_var_name() validation.
 END_OF_ERROR_INFO
 
-            define function_usage_register_function_flags << END_OF_FUNCTION_USAGE
-Registered flags through register_function_flags() must follow the valid_var_name() validation.
-END_OF_FUNCTION_USAGE
 
             # TODO: Replace with more general error
-            invalid_function_usage 0 "$function_usage_register_function_flags" "$error_info"
+            invalid_function_usage 1 '' "$error_info" --manual-help-text "$function_usage"
             exit 1
         fi
 
@@ -1217,7 +1215,7 @@ END_OF_FUNCTION_USAGE
                         define error_info <<END_OF_ERROR_INFO
 Option ${valid_short_options[j]} and ${valid_long_options[j]} expects a value supplied after it."
 END_OF_ERROR_INFO
-                        invalid_function_usage 2 "$function_usage" "$error_info"
+                        invalid_function_usage 1 '' "$error_info" --manual-help-text "$function_usage"
                         exit 1
                     fi
 
@@ -1237,7 +1235,8 @@ Given flag '${arguments[i]}' is not registered for function id: '$function_id'
 
 $(register_function_flags --help)
 END_OF_ERROR_INFO
-            invalid_function_usage 3 "$function_usage" "$error_info"
+            # TODO: Replace with error()
+            invalid_function_usage 1 '' "$error_info" --manual-help-text "$function_usage"
             exit 1
         fi
     done
@@ -1250,7 +1249,7 @@ _validate_input_handle_args()
         define error_info <<'END_OF_ERROR_INFO'
 Given <function_id> is empty.
 END_OF_ERROR_INFO
-        invalid_function_usage 3 "$function_usage" "$error_info"
+        invalid_function_usage 1 '' "$error_info" --manual-help-text "$function_usage"
         exit 1
     fi
 
@@ -1275,7 +1274,7 @@ calling _handle_args(). <function_id>: '$function_id'
 
 $(register_function_flags --help)
 END_OF_ERROR_INFO
-        invalid_function_usage 3 "$function_usage" "$error_info"
+        invalid_function_usage 1 '' "$error_info" --manual-help-text "$function_usage"
         exit 1
     fi
 
@@ -1300,17 +1299,10 @@ calling _handle_args(). <function_id>: '$function_id'
 
 $(register_help_text --help)
 END_OF_ERROR_INFO
-        invalid_function_usage 3 "$function_usage" "$error_info"
+        invalid_function_usage 1 '' "$error_info" --manual-help-text "$function_usage"
         exit 1
     fi
 }
-
-################################################################################
-################################################################################
-##### From below here, you can call register_function_flags()
-##### This is because of circular dependencies if called before
-################################################################################
-################################################################################
 
 # For previous _error_call()
 #
@@ -1360,6 +1352,15 @@ Arguments:
         First line of the error message, indicating what kind of error.
         - Example:
             \"Error in \${func_name}()\""
+
+
+################################################################################
+################################################################################
+##### From below here, you can call
+##### register_function_flags() & register_help_text()
+##### This is because of circular dependencies if called before
+################################################################################
+################################################################################
 
 
 # Sources library and exits with good info in case of not being able to source
@@ -1456,7 +1457,7 @@ END_OF_FUNCTION_USAGE
 Input <error_info> not given.
 END_OF_FUNCTION_USAGE
 
-        invalid_function_usage 2 "$function_usage" "$error_info"
+        invalid_function_usage 1 '' "$error_info" --manual-help-text "$function_usage"
         exit 1
     fi
 }
@@ -1585,7 +1586,7 @@ END_OF_FUNCTION_USAGE
             define error_info <<END_OF_ERROR_INFO
 Invalid input <to_find>: '$to_find'
 END_OF_ERROR_INFO
-            invalid_function_usage 2 "$function_usage" "$error_info"
+            invalid_function_usage 1 '' "$error_info" --manual-help-text "$function_usage"
             exit 1
             ;;
     esac
@@ -1596,7 +1597,7 @@ END_OF_ERROR_INFO
 define error_info <<END_OF_ERROR_INFO
 Invalid input <bash_source_array_len>, not a number: '$bash_source_array_len'
 END_OF_ERROR_INFO
-            invalid_function_usage 2 "$function_usage" "$error_info"
+            invalid_function_usage 1 '' "$error_info" --manual-help-text "$function_usage"
             exit 1
             ;;
         *)  ;;
@@ -1613,7 +1614,7 @@ Given length <bash_source_array_len> differs from array length of <bash_source_a
     \${#bash_source_array[@]}: '${#bash_source_array[@]}'
 END_OF_ERROR_INFO
 
-        invalid_function_usage 2 "$function_usage" "$error_info"
+        invalid_function_usage 1 '' "$error_info" --manual-help-text "$function_usage"
         exit 1
     fi
 
