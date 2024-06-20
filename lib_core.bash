@@ -632,30 +632,45 @@ END_OF_VARIABLE_WITH_EVAL
 
 invalid_function_usage()
 {
+    declare -r PLACEHOLDER_FUNC_NAME='<__PLACEHOLDER_FUNC_NAME__>'
+    local start_message="Invalid usage of ${PLACEHOLDER_FUNC_NAME}"
+
+    # Pass first 3 arguments, then 'start_output_message' and
+    # thereafter all the rest. All the rest can be optional flags etc.
+    _error_call_wrapper "${@:1:3}" "$start_message" "${@:4}"
+}
+
+_error_call_wrapper()
+{
     # functions_before=0 represents the function 1 call from this function,
     #                    that is: The function calling invalid_function_usage()
     # functions_before=1 represents the function 2 calls from this function
     local functions_before=$1
     local function_id="$2"
     local error_info="$3"
+    local start_message="$4"
     shift 3
 
-    _validate_input_invalid_function_usage
+    _validate_input_error_call_wrapper
 
-    local func_name="${FUNCNAME[functions_before + 1]}"
+    local func_name="${FUNCNAME[functions_before + 2]}"
 
-    local start_output_message
-    start_output_message="!! Invalid usage of ${func_name}()"
+    # Create PLACEHOLDER_FUNC_NAME in function calling this function.
+    # Use it for replacing function name inside this function
+    [[ -n "$PLACEHOLDER_FUNC_NAME" ]] &&
+        start_message="${start_message//${PLACEHOLDER_FUNC_NAME}/${func_name}()}"
 
-    _error_call "$((functions_before + 2))" \
+    start_message="!! ${start_message}"
+
+    _error_call "$((functions_before + 3))" \
                 "$function_id" \
                 "$error_info" \
-                "$start_output_message" \
-                --backtrace-level 1 \
+                "$start_message" \
+                --backtrace-level 2 \
                 "$@" # For possible extra flags
 }
 
-_validate_input_invalid_function_usage()
+_validate_input_error_call_wrapper()
 {
     local re='^[0-9]+$'
     if ! [[ $functions_before =~ $re ]]
@@ -665,7 +680,7 @@ _validate_input_invalid_function_usage()
         local function_id=''
         local start_output_message="!! Invalid usage of invalid_function_usage()"
         define help_text <<END_OF_VARIABLE_WITH_EVAL
-invalid_function_usage <functions_before> <function_id> <error_info>
+${func_name} <functions_before> <function_id> <error_info>
 
 Uses _error_call() and it is possible to pass flags to _error_call(). See help
 text of error_call().
@@ -1464,38 +1479,22 @@ END_OF_FUNCTION_USAGE
 
 error()
 {
-    # functions_before=1 represents the function call before this function
-    local functions_before=$1
-    local function_id_or_usage="$2"
-    local error_info="$3"
+    declare -r PLACEHOLDER_FUNC_NAME='<__PLACEHOLDER_FUNC_NAME__>'
+    local start_message="Error in ${PLACEHOLDER_FUNC_NAME}"
 
-    local func_name="${FUNCNAME[functions_before]}"
-
-    local start_output_message
-    start_output_message="!! Error in ${func_name}()"
-
-    _error_call "$((functions_before + 1))" \
-                "$function_id_or_usage" \
-                "$error_info" \
-                "$start_output_message"
+    # Pass first 3 arguments, then 'start_message' and
+    # thereafter all the rest. All the rest can be optional flags etc.
+    _error_call_wrapper "${@:1:3}" "$start_message" "${@:4}"
 }
 
 warning()
 {
-    # functions_before=1 represents the function call before this function
-    local functions_before=$1
-    local function_id_or_usage="$2"
-    local error_info="$3"
+    declare -r PLACEHOLDER_FUNC_NAME='<__PLACEHOLDER_FUNC_NAME__>'
+    local start_message="Warning in ${PLACEHOLDER_FUNC_NAME}"
 
-    local func_name="${FUNCNAME[functions_before]}"
-
-    local start_output_message
-    start_output_message="!! Warning in ${func_name}()"
-
-    _error_call "$((functions_before + 1))" \
-                "$function_id_or_usage" \
-                "$error_info" \
-                "$start_output_message"
+    # Pass first 3 arguments, then 'start_message' and
+    # thereafter all the rest. All the rest can be optional flags etc.
+    _error_call_wrapper "${@:1:3}" "$start_message" "${@:4}"
 }
 
 # Only store output in multi-file unique readonly global variables or
