@@ -630,16 +630,6 @@ ${wrapper}
 END_OF_VARIABLE_WITH_EVAL
 }
 
-invalid_function_usage()
-{
-    declare -r PLACEHOLDER_FUNC_NAME='<__PLACEHOLDER_FUNC_NAME__>'
-    local start_message="Invalid usage of ${PLACEHOLDER_FUNC_NAME}"
-
-    # Pass first 3 arguments, then 'start_output_message' and
-    # thereafter all the rest. All the rest can be optional flags etc.
-    _error_call_wrapper "${@:1:3}" "$start_message" "${@:4}"
-}
-
 _error_call_wrapper()
 {
     # functions_before=0 represents the function 1 call from this function,
@@ -696,6 +686,16 @@ END_OF_VARIABLE_WITH_EVAL
                     --manual-help-text "$help_text"
         exit 1
     fi
+}
+
+invalid_function_usage()
+{
+    declare -r PLACEHOLDER_FUNC_NAME='<__PLACEHOLDER_FUNC_NAME__>'
+    local start_message="Invalid usage of ${PLACEHOLDER_FUNC_NAME}"
+
+    # Pass first 3 arguments, then 'start_output_message' and
+    # thereafter all the rest. All the rest can be optional flags etc.
+    _error_call_wrapper "${@:1:3}" "$start_message" "${@:4}"
 }
 
 # Arrays to store _handle_args() data
