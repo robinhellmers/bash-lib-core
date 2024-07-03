@@ -269,6 +269,38 @@ _dumb_add_function_flags_and_help_text "$((_function_index_dumb_add++))" \
 ###
 
 ###
+# Dumb add function flags and help text for get_func_def_line_num()
+define help_text <<END_OF_HELP_TEXT
+get_func_def_line_num <func_name> <script_file>
+
+Finds defined function <func_name> in <script_file> and outputs its definition
+line number if exactly 1 instance is found. It does only look for functions
+defined in the form:
+
+    my_func()
+
+and thereby not
+
+    function myfunc
+
+Arguments:
+    <func_name>:
+        The name of the function to look for
+    <script_file>:
+        The file to look for the function in
+
+Return value:
+    0 if successful
+    Non-zero if failure
+END_OF_HELP_TEXT
+
+_dumb_add_function_flags_and_help_text "$((_function_index_dumb_add++))" \
+    'get_func_def_line_num' \
+    "$help_text"
+# get_func_def_line_num() help text
+###
+
+###
 # Dumb add function flags and help text for register_function_flags()
 define help_text <<END_OF_HELP_TEXT
 register_function_flags <function_id>
@@ -386,6 +418,8 @@ _dumb_add_function_flags_and_help_text "$((_function_index_dumb_add++))" \
 
 get_func_def_line_num()
 {
+    check_for_help_flag 'get_func_def_line_num' "$@"
+
     local func_name=$1
     local script_file=$2
 
