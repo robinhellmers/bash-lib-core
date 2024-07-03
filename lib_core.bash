@@ -849,7 +849,7 @@ _error_call_wrapper()
     local function_id="$2"
     local error_info="$3"
     local start_message="$4"
-    shift 3
+    shift 4
 
     _validate_input_error_call_wrapper
 
