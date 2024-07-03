@@ -301,6 +301,30 @@ _dumb_add_function_flags_and_help_text "$((_function_index_dumb_add++))" \
 ###
 
 ###
+# Dumb add function flags and help text for is_short_flag()
+define help_text <<END_OF_HELP_TEXT
+is_short_flag <to_check>
+
+Checks whether given <to_check> is a short flag, that is with a single hyphen
+and that there is a single character after the hyphen.
+
+Arguments:
+    <to_check>: The text to check if it is a short flag
+
+Return value:
+    0 if it is a short flag
+    1 if empty
+    2 if double hyphen
+    3 if not single character
+END_OF_HELP_TEXT
+
+_dumb_add_function_flags_and_help_text "$((_function_index_dumb_add++))" \
+    'is_short_flag' \
+    "$help_text"
+# is_short_flag() help text
+###
+
+###
 # Dumb add function flags and help text for register_function_flags()
 define help_text <<END_OF_HELP_TEXT
 register_function_flags <function_id>
@@ -433,6 +457,8 @@ get_func_def_line_num()
 
 is_short_flag()
 {
+    check_for_help_flag 'is_short_flag' "$@"
+
     local to_check="$1"
 
     [[ -z "$to_check" ]] && return 1
