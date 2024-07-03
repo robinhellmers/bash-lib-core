@@ -349,6 +349,29 @@ _dumb_add_function_flags_and_help_text "$((_function_index_dumb_add++))" \
 ###
 
 ###
+# Dumb add function flags and help text for get_long_flag_var_name()
+define help_text <<END_OF_HELP_TEXT
+get_long_flag_var_name <long_flag>
+
+Checks whether <long_flag> can be converted to a variable name. Replaces hyphens
+with underscores. Echos the variable name.
+
+Arguments:
+    <long_flag>: The long flag, including double hyphen, to convert to
+                 variable name
+
+Return value:
+    0 if successful in converting to variable name
+    1 if not possible to convert to variable name
+END_OF_HELP_TEXT
+
+_dumb_add_function_flags_and_help_text "$((_function_index_dumb_add++))" \
+    'get_long_flag_var_name' \
+    "$help_text"
+# get_long_flag_var_name() help text
+###
+
+###
 # Dumb add function flags and help text for register_function_flags()
 define help_text <<END_OF_HELP_TEXT
 register_function_flags <function_id>
@@ -516,6 +539,8 @@ is_long_flag()
 # Outputs valid variable name if the flag is valid, replaces hyphen with underscore
 get_long_flag_var_name()
 {
+    check_for_help_flag 'get_long_flag_var_name' "$@"
+
     local long_flag="${1#--}" # Remove initial --
 
     grep -q '^[[:alpha:]][-[:alpha:][:digit:]]*$' <<< "$long_flag" || return 1
