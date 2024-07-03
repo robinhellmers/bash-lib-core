@@ -372,6 +372,27 @@ _dumb_add_function_flags_and_help_text "$((_function_index_dumb_add++))" \
 ###
 
 ###
+# Dumb add function flags and help text for valid_var_name()
+define help_text <<END_OF_HELP_TEXT
+valid_var_name <var_name>
+
+Checks whether <var_name> is a valid variable name.
+
+Arguments:
+    <valid_var_name>: The text to check if valid variable
+
+Return value:
+    0 if valid
+    Non-zero if invalid
+END_OF_HELP_TEXT
+
+_dumb_add_function_flags_and_help_text "$((_function_index_dumb_add++))" \
+    'valid_var_name' \
+    "$help_text"
+# valid_var_name() help text
+###
+
+###
 # Dumb add function flags and help text for register_function_flags()
 define help_text <<END_OF_HELP_TEXT
 register_function_flags <function_id>
@@ -555,6 +576,8 @@ get_long_flag_var_name()
 
 valid_var_name()
 {
+    check_for_help_flag 'valid_var_name' "$@"
+
     grep -q '^[_[:alpha:]][_[:alpha:][:digit:]]*$' <<< "$1"
 }
 
