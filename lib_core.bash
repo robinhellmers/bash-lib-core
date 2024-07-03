@@ -44,6 +44,21 @@ COLOR_BOLD_CYAN='\033[1;36m'
 COLOR_BOLD_WHITE='\033[1;37m'
 ###
 
+
+###
+# Used internally in library
+readonly ARRAY_SEPARATOR='§'
+
+# Arrays to store _handle_args() data
+_handle_args_registered_function_ids=()
+_handle_args_registered_function_short_option=()
+_handle_args_registered_function_long_option=()
+_handle_args_registered_function_values=()
+_handle_args_registered_function_descriptions=()
+_handle_args_registered_help_text_function_ids=()
+_handle_args_registered_help_text=()
+###
+
 ###
 # List of global definitions - Functions, variables, arrays
 #
@@ -127,6 +142,189 @@ define()
     # Remove the trailing newline
     eval "$1=\${$1%$'\n'}"
 }
+
+_function_index_dumb_add=0
+# Used for core functions in this library to avoid circular dependencies
+#
+# Registers flags and help text for a function, without doing much checking of
+# correct usage of the function. Is replaced by register_function_flags() and
+# register_help_text() later on, which utilizes the same global arrays.
+_dumb_add_function_flags_and_help_text()
+{
+    local function_index="$1"
+    local function_id="$2"
+    local help_text="$3"
+    shift 3
+
+    local re='^[0-9]+$'
+    if ! [[ $function_index =~ $re ]]
+    then
+        echo "Given function index to _tmp_add_function_flags() is not a number: '$function_index'" >&2
+        exit 1
+    fi
+
+    _add_separator_to_arrays_handle_args()
+    {
+        _handle_args_registered_function_short_option[$function_index]+="$ARRAY_SEPARATOR"
+        _handle_args_registered_function_long_option[$function_index]+="$ARRAY_SEPARATOR"
+        _handle_args_registered_function_values[$function_index]+="$ARRAY_SEPARATOR"
+        _handle_args_registered_function_descriptions[$function_index]+="$ARRAY_SEPARATOR"
+    }
+
+    _handle_args_registered_function_ids[$function_index]="$function_id"
+    _handle_args_registered_help_text_function_ids[$function_index]="$function_id"
+
+    _handle_args_registered_help_text[$function_index]="$help_text"
+
+    local first_iter='true'
+
+    while (( $# > 1 ))
+    do
+        local input_short_flag="$1"
+        local input_long_flag="$2"
+        local input_expect_value="$3"
+        local input_description="$4"
+        shift 4
+
+        [[ -z "$input_short_flag" ]] && input_short_flag='_'
+
+        if [[ "$first_iter" == 'true' ]]
+        then
+            first_iter='false'
+        else
+            _add_separator_to_arrays_handle_args
+        fi
+
+        _handle_args_registered_function_short_option[$function_index]+="$input_short_flag"
+        _handle_args_registered_function_long_option[$function_index]+="$input_long_flag"
+        _handle_args_registered_function_values[$function_index]+="$input_expect_value"
+        _handle_args_registered_function_descriptions[$function_index]+="$input_description"
+    done
+}
+
+################################################################################
+################################################################################
+##### Dumb add function flags & help texts for the most important functions.
+##### Use function with bare minimum validation.
+##### This is to avoid circular dependencies.
+##### This should be done with functions down to comment marking:
+##### 'ALLOW FUNCTION CALLS register_function_flags() & register_help_text()'
+################################################################################
+################################################################################
+
+###
+# Dumb add function flags and help text for register_function_flags()
+define help_text <<END_OF_HELP_TEXT
+register_function_flags <function_id>
+                        <short_flag_1> <long_flag_1> <expect_value_1> <description_1>
+                        <short_flag_2> <long_flag_2> <expect_value_2> <description_2>
+                        ...
+
+    Registers how many function flags as you want, always in a set of 4 input
+    arguments: <short_flag> <long_flag> <expect_value> <description>
+
+    Either of <short_flag> or <long_flag> can be empty, but must then be entered
+    as an empty string "".
+
+    <function_id>:
+        * Each function can have its own set of flags. The function id is used
+          for identifying which flags to parse and how to parse them.
+            - Function id can e.g. be the function name.
+    <short_flag_#>:
+        * Single dash flag.
+        * E.g. '-e'
+    <long_flag_#>:
+        * Double dash flag
+        * E.g. '--echo'
+    <expect_value_#>:
+        * String boolean which indicates if an associated value is expected
+          after the flag.
+        * 'true' = There shall be a value supplied after the flag
+    <description_#>:
+        * Text description of the flag
+END_OF_HELP_TEXT
+
+_dumb_add_function_flags_and_help_text "$((_function_index_dumb_add++))" \
+    'register_function_flags' \
+    "$help_text"
+###
+
+###
+# Dumb add function flags and help text for register_help_text()
+define help_text <<END_OF_HELP_TEXT
+register_help_text <function_id> <help_text>
+
+Arguments:
+    <function_id>:
+        * Each function can have its own set of flags and help text. The function id is used
+        for identifying which flags and help text to use. Must be the same function id as
+        when registering through register_function_flags().
+            - Function id can e.g. be the function name.
+    <help_text>:
+        * Multi-line help text where the first line should have the form like e.g.:
+            'register_help_text <function_id> <help_text>'
+        Followed by an empty line and thereafter optional multi-line description.
+        * Shall not include flag description as that is added automatically using the text
+        registered through register_function_flags().
+END_OF_HELP_TEXT
+
+_dumb_add_function_flags_and_help_text $((_function_index_dumb_add++)) \
+    'register_help_text' \
+    "$help_text"
+###
+
+###
+# Dumb add function flags and help text for _error_call()
+define help_text <<'END_OF_HELP_TEXT'
+_error_call <functions_before>
+            <function_id>
+            <extra_info>
+            <start_output_message>
+
+Arguments:
+    <functions_before>:
+        Used for the output 'Defined at' & 'Backtrace' sections.
+        Which function which to mark with the error.
+        - '0': This function: _error_call()
+        - '1': 1 function before this. Which calls _error_call()
+        - '2': 2 functions before this
+    <function_id>:
+        Used for the output 'Help text' section.
+        Function ID used to register the function help text & flags:
+        - register_help_test()
+        - register_function_flags()
+    <extra_info>:
+        Single-/Multi-line with extra info.
+        - Example:
+            "Invalid input <arg_two>: '$arg_two'"
+    <start_output_message>:
+        First line of the error message, indicating what kind of error.
+        - Example:
+            "Error in ${func_name}()"
+END_OF_HELP_TEXT
+
+_dumb_add_function_flags_and_help_text "$((_function_index_dumb_add++))" \
+    '_error_call' \
+    "$help_text" \
+    '' '--backtrace-level' 'true' \
+    "<num> - How deep to backtrace function calls. <num> function calls before _error_call()" \
+    '' '--no-defined-at' 'false' \
+    "Do not output where the function called function is defined at." \
+    '' '--no-backtrace' 'false' \
+    "Do not output a backtrace of function calls." \
+    '' '--no-extra-info' 'false' \
+    "Do not output extra info." \
+    '' '--no-help-text' 'false' \
+    "Do not output a function help text" \
+    '' '--manual-help-text' 'true' \
+    "Instead of using '<function_id> to get the help text, give the help text manually."
+###
+
+################################################################################
+################################################################################
+##### End of dumb adding function flags & help texts.
+################################################################################
+################################################################################
 
 get_func_def_line_num()
 {
@@ -698,18 +896,25 @@ invalid_function_usage()
     _error_call_wrapper "${@:1:3}" "$start_message" "${@:4}"
 }
 
-# Arrays to store _handle_args() data
-_handle_args_registered_function_ids=()
-_handle_args_registered_function_short_option=()
-_handle_args_registered_function_long_option=()
-_handle_args_registered_function_values=()
 
 # Register valid flags for a function
+#
+# The function will do the following if used correctly:
+# 1. Add function id to
+#       _handle_args_registered_function_ids[]
+# 2. Add short flag to
+#       _handle_args_registered_function_short_option[]
+#    or an underscore '_' if none
+# 3. Add long flag to
+#       _handle_args_registered_function_long_option[]
+#    or an underscore '_' if none
+# 4. Add if expecting value after flag, 'true' or 'false'  to
+#       _handle_args_registered_function_values[]
+#
 register_function_flags()
 {
-    _handle_input_register_function_flags "$1" || return
-
-    local function_id="$1"
+    local function_id
+    _handle_input_register_function_flags "$@"
     shift
 
     if [[ -z "$function_id" ]]
@@ -717,7 +922,7 @@ register_function_flags()
         define error_info <<END_OF_ERROR_INFO
 Given <function_id> is empty.
 END_OF_ERROR_INFO
-        invalid_function_usage 0 "" "$error_info" --manual-help-text "$function_usage"
+        invalid_function_usage 0 'register_function_flags' "$error_info"
         exit 1
     fi
 
@@ -729,7 +934,7 @@ END_OF_ERROR_INFO
             define error_info <<END_OF_ERROR_INFO
 Given <function_id> is already registered: '$function_id'
 END_OF_ERROR_INFO
-            invalid_function_usage 0 "" "$error_info" --manual-help-text "$function_usage"
+            invalid_function_usage 0 'register_function_flags' "$error_info"
             exit 1
         fi
     done
@@ -750,7 +955,7 @@ END_OF_ERROR_INFO
             define error_info <<END_OF_ERROR_INFO
 Neither short or long flag were given for <function_id>: '$function_id'
 END_OF_ERROR_INFO
-            invalid_function_usage 0 "" "$error_info" --manual-help-text "$function_usage"
+            invalid_function_usage 0 'register_function_flags' "$error_info"
             exit 1
         fi
 
@@ -765,7 +970,7 @@ END_OF_ERROR_INFO
 Invalid short flag format: '$input_short_flag'
 Must start with a single hyphen '-'
 END_OF_ERROR_INFO
-                    invalid_function_usage 0 "" "$error_info" --manual-help-text "$function_usage"
+                    invalid_function_usage 0 'register_function_flags' "$error_info"
                     exit 1
                     ;;
                 3)
@@ -773,7 +978,7 @@ END_OF_ERROR_INFO
 Invalid short flag format: '$input_short_flag'
 Must have exactly a single letter after the hyphen '-'
 END_OF_ERROR_INFO
-                    invalid_function_usage 0 "" "$error_info" --manual-help-text "$function_usage"
+                    invalid_function_usage 0 'register_function_flags' "$error_info"
                     exit 1
                     ;;
                 *)  ;;
@@ -792,7 +997,7 @@ END_OF_ERROR_INFO
 Invalid long flag format: '$input_long_flag'
 Must start with double hyphen '--'
 END_OF_ERROR_INFO
-                    invalid_function_usage 0 "" "$error_info" --manual-help-text "$function_usage"
+                    invalid_function_usage 0 'register_function_flags' "$error_info"
                     exit 1
                     ;;
                 3)
@@ -801,7 +1006,7 @@ Invalid long flag format: '$input_long_flag'
 Characters after '--' must start with a letter or underscore and can only
 contain letters, numbers and underscores thereafter.
 END_OF_ERROR_INFO
-                    invalid_function_usage 0 "" "$error_info" --manual-help-text "$function_usage"
+                    invalid_function_usage 0 'register_function_flags' "$error_info"
                     exit 1
                     ;;
                 *)  ;;
@@ -815,7 +1020,7 @@ END_OF_ERROR_INFO
 Missing input 'expect_value'
 Must have the value of 'true' or 'false'.
 END_OF_ERROR_INFO
-            invalid_function_usage 0 "" "$error_info" --manual-help-text "$function_usage"
+            invalid_function_usage 0 'register_function_flags' "$error_info"
             exit 1
         elif [[ "$input_expect_value" != 'true' && "$input_expect_value" != 'false' ]]
         then
@@ -823,7 +1028,7 @@ END_OF_ERROR_INFO
 Invalid 'expect_value': '$input_expect_value'
 Must have the value of 'true' or 'false'.
 END_OF_ERROR_INFO
-            invalid_function_usage 0 "" "$error_info" --manual-help-text "$function_usage"
+            invalid_function_usage 0 'register_function_flags' "$error_info"
             exit 1
         fi
 
@@ -841,12 +1046,12 @@ END_OF_ERROR_INFO
             define error_info << END_OF_ERROR_INFO
 Missing input 'description' for flag '$flag_indicator'
 END_OF_ERROR_INFO
-            invalid_function_usage 0 "" "$error_info" --manual-help-text "$function_usage"
+            invalid_function_usage 0 'register_function_flags' "$error_info"
             exit 1
         fi
 
-        [[ -z "$input_short_flag" ]] && short_option+=("_") || short_option+=("$1")
-        [[ -z "$input_long_flag" ]] && long_option+=("_") || long_option+=("$2")
+        [[ -z "$input_short_flag" ]] && short_option+=("_") || short_option+=("$input_short_flag")
+        [[ -z "$input_long_flag" ]] && long_option+=("_") || long_option+=("$input_long_flag")
 
         expect_value+=("$input_expect_value")
         description+=("$input_description")
@@ -856,10 +1061,10 @@ END_OF_ERROR_INFO
 
     ### Append to global arrays
     #
-    # [*] used to save all '§' separated at the same index, to map all options
+    # [*] used to save all '${ARRAY_SEPARATOR}' separated at the same index, to map all options
     # to the same registered function name
     local old_IFS="$IFS"
-    IFS='§'
+    IFS="${ARRAY_SEPARATOR}"
     _handle_args_registered_function_ids+=("$function_id")
     _handle_args_registered_function_short_option+=("${short_option[*]}")
     _handle_args_registered_function_long_option+=("${long_option[*]}")
@@ -870,56 +1075,26 @@ END_OF_ERROR_INFO
 
 _handle_input_register_function_flags()
 {
-        define function_usage <<END_OF_FUNCTION_USAGE
-Usage: register_function_flags <function_id> \
-                               <short_flag_1> <long_flag_1> <expect_value_1> <description_1> \
-                               <short_flag_2> <long_flag_2> <expect_value_2> <description_2> \
-                               ...
-    Registers how many function flags as you want, always in a set of 4 input
-    arguments: <short_flag> <long_flag> <expect_value> <description>
+    _handle_args 'register_function_flags' "$@"
 
-    Either of <short_flag> or <long_flag> can be empty, but must then be entered
-    as an empty string "".
-
-    <function_id>:
-        * Each function can have its own set of flags. The function id is used
-          for identifying which flags to parse and how to parse them.
-            - Function id can e.g. be the function name.
-    <short_flag_#>:
-        * Single dash flag.
-        * E.g. '-e'
-    <long_flag_#>:
-        * Double dash flag
-        * E.g. '--echo'
-    <expect_value_#>:
-        * String boolean which indicates if an associated value is expected
-          after the flag.
-        * 'true' = There shall be a value supplied after the flag
-    <description_#>:
-        * Text description of the flag
-END_OF_FUNCTION_USAGE
-
-
-    # Manual check as _handle_args() cannot be used, creates circular dependency
-    if [[ "$1" == '-h' ]] || [[ "$1" == '--help' ]]
-    then
-        echo "$function_usage"
-        return 1
-    fi
+    function_id="${non_flagged_args[0]}"
 }
 
-
-# Arrays to store _handle_args() help text data
-_handle_args_registered_help_text_function_ids=()
-_handle_args_registered_help_text=()
-
+# Register help text for a function
+#
+# The function will do the following if used correctly:
+# 1. Add function id to
+#       _handle_args_registered_help_text_function_ids[]
+# 2. Add help text to
+#       _handle_args_registered_help_text[]
+#
 register_help_text()
 {
-    local function_id="$1"
-    local help_text="$2"
+    local function_id
+    local help_text
 
     # Special case for register_help_text(), manually parse for help flag
-    _handle_input_register_help_text "$1"
+    _handle_input_register_help_text "$@"
 
     _validate_input_register_help_text
 
@@ -929,29 +1104,10 @@ register_help_text()
 
 _handle_input_register_help_text()
 {
-    define function_usage <<END_OF_FUNCTION_USAGE
-Usage: register_help_text <function_id> <help_text>
-
-<function_id>:
-    * Each function can have its own set of flags and help text. The function id is used
-      for identifying which flags and help text to use. Must be the same function id as
-      when registering through register_function_flags().
-        - Function id can e.g. be the function name.
-<help_text>:
-    * Multi-line help text where the first line should have the form like e.g.:
-        'register_help_text <function_id> <help_text>'
-      Followed by an empty line and thereafter optional multi-line description.
-    * Shall not include flag description as that is added automatically using the text
-      registered through register_function_flags().
-END_OF_FUNCTION_USAGE
-
-
-    # Manual check as _handle_args() cannot be used, creates circular dependency
-    if [[ "$1" == '-h' ]] || [[ "$1" == '--help' ]]
-    then
-        echo "$function_usage"
-        exit 0
-    fi
+    _handle_args 'register_help_text' "$@"
+    
+    function_id="${non_flagged_args[0]}"
+    help_text="${non_flagged_args[1]}"
 }
 
 _validate_input_register_help_text()
@@ -961,7 +1117,7 @@ _validate_input_register_help_text()
         define error_info <<END_OF_ERROR_INFO
 Given <function_id> is empty.
 END_OF_ERROR_INFO
-        invalid_function_usage 1 "" "$error_info" --manual-help-text "$function_usage"
+        invalid_function_usage 1 'register_help_text' "$error_info"
         exit 1
     fi
 
@@ -973,7 +1129,7 @@ END_OF_ERROR_INFO
             define error_info <<END_OF_ERROR_INFO
 Given <function_id> have already registered an help text: '$function_id'
 END_OF_ERROR_INFO
-            invalid_function_usage 1 "" "$error_info" --manual-help-text "$function_usage"
+            invalid_function_usage 1 'register_help_text' "$error_info"
             exit 1
         fi
     done
@@ -983,7 +1139,7 @@ END_OF_ERROR_INFO
         define error_info <<END_OF_ERROR_INFO
 Given <help_text> is empty.
 END_OF_ERROR_INFO
-        invalid_function_usage 1 "" "$error_info" --manual-help-text "$function_usage"
+        invalid_function_usage 1 'register_help_text' "$error_info"
         exit 1
     fi
 }
@@ -1032,9 +1188,9 @@ get_help_text()
     local valid_long_options
     local flags_descriptions
     # Convert space separated elements into an array
-    IFS='§' read -ra valid_short_options <<< "${_handle_args_registered_function_short_option[function_index]}"
-    IFS='§' read -ra valid_long_options <<< "${_handle_args_registered_function_long_option[function_index]}"
-    IFS='§' read -ra flags_descriptions <<< "${_handle_args_registered_function_descriptions[function_index]}"
+    IFS="${ARRAY_SEPARATOR}" read -ra valid_short_options <<< "${_handle_args_registered_function_short_option[function_index]}"
+    IFS="${ARRAY_SEPARATOR}" read -ra valid_long_options <<< "${_handle_args_registered_function_long_option[function_index]}"
+    IFS="${ARRAY_SEPARATOR}" read -ra flags_descriptions <<< "${_handle_args_registered_function_descriptions[function_index]}"
 
     local array_flag_description_line=()
     local max_line_length=0
@@ -1138,10 +1294,10 @@ END_OF_FUNCTION_USAGE
     local flags_descriptions
     local expects_value
     # Convert space separated elements into an array
-    IFS='§' read -ra valid_short_options <<< "${_handle_args_registered_function_short_option[function_index]}"
-    IFS='§' read -ra valid_long_options <<< "${_handle_args_registered_function_long_option[function_index]}"
-    IFS='§' read -ra flags_descriptions <<< "${_handle_args_registered_function_descriptions[function_index]}"
-    IFS='§' read -ra expects_value <<< "${_handle_args_registered_function_values[function_index]}"
+    IFS="${ARRAY_SEPARATOR}" read -ra valid_short_options <<< "${_handle_args_registered_function_short_option[function_index]}"
+    IFS="${ARRAY_SEPARATOR}" read -ra valid_long_options <<< "${_handle_args_registered_function_long_option[function_index]}"
+    IFS="${ARRAY_SEPARATOR}" read -ra flags_descriptions <<< "${_handle_args_registered_function_descriptions[function_index]}"
+    IFS="${ARRAY_SEPARATOR}" read -ra expects_value <<< "${_handle_args_registered_function_values[function_index]}"
 
     local registered_help_text="${_handle_args_registered_help_text[function_help_text_index]}"
 
@@ -1319,58 +1475,14 @@ END_OF_ERROR_INFO
     fi
 }
 
-# For previous _error_call()
-#
-# Very important to call both functions for '_error_call' to avoid circular call:
-# - register_function_flags()
-# - register_help_text()
-register_function_flags '_error_call' \
-                        '' '--backtrace-level' 'true' \
-                        "<num> - How deep to backtrace function calls. <num> function calls before _error_call()" \
-                        '' '--no-defined-at' 'false' \
-                        "Do not output where the function called function is defined at." \
-                        '' '--no-backtrace' 'false' \
-                        "Do not output a backtrace of function calls." \
-                        '' '--no-extra-info' 'false' \
-                        "Do not output extra info." \
-                        '' '--no-help-text' 'false' \
-                        "Do not output a function help text" \
-                        '' '--manual-help-text' 'true' \
-                        "Instead of using '<function_id> to get the help text, give the help text manually."
-
-
-# For previous _error_call()
-#
-# Very important to call both functions for '_error_call' to avoid circular call:
-# - register_function_flags()
-# - register_help_text()
-register_help_text '_error_call' \
-"_error_call <functions_before> <function_id> <extra_info> <start_output_message>
-
-Arguments:
-    <functions_before>:
-        Used for the output 'Defined at' & 'Backtrace' sections.
-        Which function which to mark with the error.
-        - '0': This function: _error_call()
-        - '1': 1 function before this. Which calls _error_call()
-        - '2': 2 functions before this
-    <function_id>:
-        Used for the output 'Help text' section.
-        Function ID used to register the function help text & flags:
-        - register_help_test()
-        - register_function_flags()
-    <extra_info>:
-        Single-/Multi-line with extra info.
-        - Example:
-            \"Invalid input <arg_two>: '\$arg_two'\"
-    <start_output_message>:
-        First line of the error message, indicating what kind of error.
-        - Example:
-            \"Error in \${func_name}()\""
-
+unset _function_index_dumb_add
+unset -f _add_separator_to_arrays_handle_args
+unset -f _dumb_add_function_flags_and_help_text
 
 ################################################################################
 ################################################################################
+##### ALLOW FUNCTION CALLS register_function_flags() & register_help_text()
+#####
 ##### From below here, you can call
 ##### register_function_flags() & register_help_text()
 ##### This is because of circular dependencies if called before
