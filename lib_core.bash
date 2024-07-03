@@ -148,6 +148,8 @@ _handle_args_registered_help_text=()
 # END_OF_MESSAGE_WITH_EVAL
 define()
 {
+    check_for_help_flag 'define' "$@"
+
     IFS= read -r -d '' "$1" || true
     # Remove the trailing newline
     eval "$1=\${$1%$'\n'}"
@@ -212,6 +214,23 @@ _dumb_add_function_flags_and_help_text()
     done
 }
 
+check_for_help_flag()
+{
+    local function_id="$1"
+    shift
+    local arguments=("$@")
+
+    # Look for help flag -h/--help
+    for arg in "${arguments[@]}"
+    do
+        if [[ "$arg" == '-h' ]] || [[ "$arg" == '--help' ]]
+        then
+            get_help_text "$function_id"
+            exit 0
+        fi
+    done
+}
+
 ################################################################################
 ################################################################################
 ##### Dumb add function flags & help texts for the most important functions.
@@ -221,6 +240,33 @@ _dumb_add_function_flags_and_help_text()
 ##### 'ALLOW FUNCTION CALLS register_function_flags() & register_help_text()'
 ################################################################################
 ################################################################################
+
+###
+# Dumb add function flags and help text for define()
+define help_text <<END_OF_HELP_TEXT
+Easily creates variable with multiline text. With or without evaluation.
+Utilizes heredoc as seen in the examples below.
+
+For no evaluation, having the exact text stored in the variable:
+
+    define <varname> <<'END_OF_TEXT'
+<text>
+<text>
+END_OF_TEXT
+
+For evaluation, of e.g. variables and backslash:
+
+    define <varname> <<END_OF_TEXT
+<text>
+<text>
+END_OF_TEXT
+END_OF_HELP_TEXT
+
+_dumb_add_function_flags_and_help_text "$((_function_index_dumb_add++))" \
+    'define' \
+    "$help_text"
+# define() help text
+###
 
 ###
 # Dumb add function flags and help text for register_function_flags()
@@ -281,6 +327,7 @@ END_OF_HELP_TEXT
 _dumb_add_function_flags_and_help_text $((_function_index_dumb_add++)) \
     'register_help_text' \
     "$help_text"
+# register_help_text() help text
 ###
 
 ###
@@ -328,6 +375,7 @@ _dumb_add_function_flags_and_help_text "$((_function_index_dumb_add++))" \
     "Do not output a function help text" \
     '' '--manual-help-text' 'true' \
     "Instead of using '<function_id> to get the help text, give the help text manually."
+# _error_call() help text
 ###
 
 ################################################################################
@@ -1291,15 +1339,7 @@ END_OF_FUNCTION_USAGE
     # Output:
     # function_index
 
-    # Look for help flag -h/--help
-    for arg in "${arguments[@]}"
-    do
-        if [[ "$arg" == '-h' ]] || [[ "$arg" == '--help' ]]
-        then
-            get_help_text "$function_id"
-            exit 0
-        fi
-    done
+    check_for_help_flag "$function_id" "${arguments[@]}"
 
     local valid_short_options
     local valid_long_options
