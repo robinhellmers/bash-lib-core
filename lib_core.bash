@@ -393,6 +393,31 @@ _dumb_add_function_flags_and_help_text "$((_function_index_dumb_add++))" \
 ###
 
 ###
+# Dumb add function flags and help text for backtrace()
+define help_text <<END_OF_HELP_TEXT
+backtrace [level_function_callstack]
+
+Prints the function callstack at the current state.
+
+Arguments:
+    [level_function_callstack]: Optional.
+        How far back in the function callstack to show.
+        0 - includes backtrace() call
+        1 - includes the function calling backtrace()
+        2 - includes 2 function above backtrace()
+        etc.
+
+Return value:
+    Always 0
+END_OF_HELP_TEXT
+
+_dumb_add_function_flags_and_help_text "$((_function_index_dumb_add++))" \
+    'backtrace' \
+    "$help_text"
+# backtrace() help text
+###
+
+###
 # Dumb add function flags and help text for register_function_flags()
 define help_text <<END_OF_HELP_TEXT
 register_function_flags <function_id>
@@ -583,6 +608,8 @@ valid_var_name()
 
 backtrace()
 {
+    check_for_help_flag 'backtrace' "$@"
+
     local level_function_callstack=$1
 
     # How much to include in function call stack
