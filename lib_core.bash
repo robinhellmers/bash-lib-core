@@ -325,6 +325,30 @@ _dumb_add_function_flags_and_help_text "$((_function_index_dumb_add++))" \
 ###
 
 ###
+# Dumb add function flags and help text for is_long_flag()
+define help_text <<END_OF_HELP_TEXT
+is_long_flag <to_check>
+
+Checks whether given <to_check> is a long flag, that is with a double hyphen
+and that the following text can be converted to a variable.
+
+Arguments:
+    <to_check>: The text to check if it is a long flag
+
+Return value:
+    0 if it is a long flag
+    1 if empty
+    2 if not double hyphen
+    3 if not possible to create valid variable name from the following text
+END_OF_HELP_TEXT
+
+_dumb_add_function_flags_and_help_text "$((_function_index_dumb_add++))" \
+    'is_long_flag' \
+    "$help_text"
+# is_long_flag() help text
+###
+
+###
 # Dumb add function flags and help text for register_function_flags()
 define help_text <<END_OF_HELP_TEXT
 register_function_flags <function_id>
@@ -474,6 +498,8 @@ is_short_flag()
 
 is_long_flag()
 {
+    check_for_help_flag 'is_long_flag' "$@"
+
     local to_check="$1"
 
     [[ -z "$to_check" ]] && return 1
