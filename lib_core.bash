@@ -62,7 +62,23 @@ _handle_args_registered_help_text=()
 ###
 # List of global definitions - Functions, variables, arrays
 #
+#   Color variables
+#
+#   Variable: ARRAY_SEPARATOR
+#   Array: _handle_args_registered_function_ids[]
+#   Array: _handle_args_registered_function_short_option[]
+#   Array: _handle_args_registered_function_long_option[]
+#   Array: _handle_args_registered_function_values[]
+#   Array: _handle_args_registered_help_text_function_ids[]
+#   Array: _handle_args_registered_help_text[]
+#
 #   define()
+#   
+#   Variable: _function_index_dumb_add
+#   _dumb_add_function_flags_and_help_text()
+#       _add_separator_to_arrays_handle_args()
+#
+#   === Dumb registering function flags & help texts ===
 #
 #   get_func_def_line_num()
 #   is_short_flag()
@@ -85,14 +101,8 @@ _handle_args_registered_help_text=()
 #   invalid_function_usage()
 #
 #   register_function_flags()
-#       Array: _handle_args_registered_function_ids[]
-#       Array: _handle_args_registered_function_short_option[]
-#       Array: _handle_args_registered_function_long_option[]
-#       Array: _handle_args_registered_function_values[]
 #       _handle_input_register_function_flags()
 #   register_help_text()
-#       Array: _handle_args_registered_help_text_function_ids[]
-#       Array: _handle_args_registered_help_text[]
 #       _handle_input_register_help_text()
 #       _validate_input_register_help_text()
 #   get_help_text()
@@ -1406,8 +1416,8 @@ Given flag '${arguments[i]}' is not registered for function id: '$function_id'
 
 $(register_function_flags --help)
 END_OF_ERROR_INFO
-            # TODO: Replace with error()
-            invalid_function_usage 1 '' "$error_info" --manual-help-text "$function_usage"
+
+            error 1 '' "$error_info" --manual-help-text "$function_usage"
             exit 1
         fi
     done
