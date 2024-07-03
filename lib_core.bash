@@ -418,6 +418,54 @@ _dumb_add_function_flags_and_help_text "$((_function_index_dumb_add++))" \
 ###
 
 ###
+# Dumb add function flags and help text for _error_call()
+define help_text <<'END_OF_HELP_TEXT'
+_error_call <functions_before>
+            <function_id>
+            <extra_info>
+            <start_output_message>
+
+Arguments:
+    <functions_before>:
+        Used for the output 'Defined at' & 'Backtrace' sections.
+        Which function which to mark with the error.
+        - '0': This function: _error_call()
+        - '1': 1 function before this. Which calls _error_call()
+        - '2': 2 functions before this
+    <function_id>:
+        Used for the output 'Help text' section.
+        Function ID used to register the function help text & flags:
+        - register_help_test()
+        - register_function_flags()
+    <extra_info>:
+        Single-/Multi-line with extra info.
+        - Example:
+            "Invalid input <arg_two>: '$arg_two'"
+    <start_output_message>:
+        First line of the error message, indicating what kind of error.
+        - Example:
+            "Error in ${func_name}()"
+END_OF_HELP_TEXT
+
+_dumb_add_function_flags_and_help_text "$((_function_index_dumb_add++))" \
+    '_error_call' \
+    "$help_text" \
+    '' '--backtrace-level' 'true' \
+    "<num> - How deep to backtrace function calls. <num> function calls before _error_call()" \
+    '' '--no-defined-at' 'false' \
+    "Do not output where the function called function is defined at." \
+    '' '--no-backtrace' 'false' \
+    "Do not output a backtrace of function calls." \
+    '' '--no-extra-info' 'false' \
+    "Do not output extra info." \
+    '' '--no-help-text' 'false' \
+    "Do not output a function help text" \
+    '' '--manual-help-text' 'true' \
+    "Instead of using '<function_id> to get the help text, give the help text manually."
+# _error_call() help text
+###
+
+###
 # Dumb add function flags and help text for register_function_flags()
 define help_text <<END_OF_HELP_TEXT
 register_function_flags <function_id>
@@ -477,54 +525,6 @@ _dumb_add_function_flags_and_help_text $((_function_index_dumb_add++)) \
     'register_help_text' \
     "$help_text"
 # register_help_text() help text
-###
-
-###
-# Dumb add function flags and help text for _error_call()
-define help_text <<'END_OF_HELP_TEXT'
-_error_call <functions_before>
-            <function_id>
-            <extra_info>
-            <start_output_message>
-
-Arguments:
-    <functions_before>:
-        Used for the output 'Defined at' & 'Backtrace' sections.
-        Which function which to mark with the error.
-        - '0': This function: _error_call()
-        - '1': 1 function before this. Which calls _error_call()
-        - '2': 2 functions before this
-    <function_id>:
-        Used for the output 'Help text' section.
-        Function ID used to register the function help text & flags:
-        - register_help_test()
-        - register_function_flags()
-    <extra_info>:
-        Single-/Multi-line with extra info.
-        - Example:
-            "Invalid input <arg_two>: '$arg_two'"
-    <start_output_message>:
-        First line of the error message, indicating what kind of error.
-        - Example:
-            "Error in ${func_name}()"
-END_OF_HELP_TEXT
-
-_dumb_add_function_flags_and_help_text "$((_function_index_dumb_add++))" \
-    '_error_call' \
-    "$help_text" \
-    '' '--backtrace-level' 'true' \
-    "<num> - How deep to backtrace function calls. <num> function calls before _error_call()" \
-    '' '--no-defined-at' 'false' \
-    "Do not output where the function called function is defined at." \
-    '' '--no-backtrace' 'false' \
-    "Do not output a backtrace of function calls." \
-    '' '--no-extra-info' 'false' \
-    "Do not output extra info." \
-    '' '--no-help-text' 'false' \
-    "Do not output a function help text" \
-    '' '--manual-help-text' 'true' \
-    "Instead of using '<function_id> to get the help text, give the help text manually."
-# _error_call() help text
 ###
 
 ################################################################################
