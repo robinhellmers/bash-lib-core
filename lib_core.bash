@@ -2141,6 +2141,40 @@ _handle_args_error()
     _validate_functions_before_variable 'error' "$functions_before"
 }
 
+register_function_flags 'warning'
+
+register_help_text 'warning' \
+"warning <functions_before>
+          <function_id>
+          <extra_info>
+
+Output a generic warning with backtrace, function definition, error info and
+help text.
+
+Arguments:
+    <functions_before>:
+        Used for the output 'Defined at' & 'Backtrace' sections.
+        Which function which to mark with the error.
+        - '0': The function calling invalid_function_usage()
+        - '1': 1 function before that
+        - '2': 2 functions before that
+        - '#': etc.
+    <function_id>:
+        Used for the output 'Help text' section.
+        Function ID used to register the function help text & flags:
+        - register_hel main.sh sources script_1.invalid_function_p_test()
+        - register_function_flags()
+    <extra_info>:
+        Single-/Multi-line with extra info.
+        - Example:
+            \"Invalid input <arg_two>: '\$arg_two'\"
+
+All the rest of the arguments e.g. flags will be passed to _error_call(), see
+the help text of _error_call() for more information.
+
+Help text for _error_call():
+
+$(get_help_text '_error_call')"
 
 warning()
 {
