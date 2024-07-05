@@ -91,7 +91,7 @@ _handle_args_registered_help_text=()
 #       _handle_args_error_call()
 #       _get_func_info()
 #       _create_wrapper_divider()
-#       _create_start_output_message()
+#       _create_start_message()
 #       _append_defined_at_output_message()
 #       _append_backtrace_output_message()
 #       _append_extra_info_output_message()
@@ -1040,7 +1040,7 @@ _error_call()
     local functions_before
     local function_id
     local extra_info
-    local start_output_message
+    local start_message
 
     # Flags stored local. Cannot make '<var>_flag' local as it will be unset
     # before stored as global.
@@ -1068,7 +1068,7 @@ _error_call()
         local func_call_file func_call_line_num
         _get_func_info "$functions_before"
 
-        start_output_message="!! Invalid usage of ${func_name}()"
+        start_message="!! Invalid usage of ${func_name}()"
     else
         local func_name
         local func_def_file func_def_line_num
@@ -1083,7 +1083,7 @@ _error_call()
 
     local output_message
 
-    _create_start_output_message
+    _create_start_message
 
     [[ "$no_defined_at" != 'true' ]] &&
         _append_defined_at_output_message
@@ -1112,7 +1112,7 @@ _handle_args_error_call()
     functions_before="${non_flagged_args[0]}"
     function_id="${non_flagged_args[1]}"
     extra_info="${non_flagged_args[2]}"
-    start_output_message="${non_flagged_args[3]}"
+    start_message="${non_flagged_args[3]}"
     #####
 
     #####
@@ -1232,11 +1232,11 @@ END_OF_EXTRA_INFO
     fi
 
     # Output requirements - Start of output message
-    if [[ -z "$start_output_message" ]]
+    if [[ -z "$start_message" ]]
     then
         invalid_usage_of_this_func='true'
         define extra_info <<END_OF_EXTRA_INFO
-Given input <start_output_message> missing.
+Given input <start_message> missing.
 END_OF_EXTRA_INFO
         return 1
     fi
@@ -1272,12 +1272,12 @@ _create_wrapper_divider()
     divider="$(printf "%.s-" $(seq $COLUMNS))"
 }
 
-_create_start_output_message()
+_create_start_message()
 {
     define output_message <<END_OF_VARIABLE_WITH_EVAL
 
 ${wrapper}
-${start_output_message}
+${start_message}
 END_OF_VARIABLE_WITH_EVAL
 }
 
@@ -1410,7 +1410,7 @@ invalid_function_usage()
     declare -r PLACEHOLDER_FUNC_NAME='<__PLACEHOLDER_FUNC_NAME__>'
     local start_message="Invalid usage of ${PLACEHOLDER_FUNC_NAME}"
 
-    # Pass first 3 arguments, then 'start_output_message' and
+    # Pass first 3 arguments, then 'start_message' and
     # thereafter all the rest. All the rest can be optional flags etc.
     _error_call_wrapper "${@:1:3}" "$start_message" "${@:4}"
 }
