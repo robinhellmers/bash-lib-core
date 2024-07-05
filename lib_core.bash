@@ -633,6 +633,57 @@ _dumb_add_function_flags_and_help_text "$((_function_index_dumb_add++))" \
 ###
 
 ###
+# Dumb add function flags and help text for invalid_function_usage()
+define help_text <<END_OF_HELP_TEXT
+invalid_function_usage <functions_before>
+                       <function_id>
+                       <extra_info>
+                       <start_output_message>
+
+All the rest of the arguments e.g. flags will be passed to _error_call(), see
+the help text of _error_call() for more information.
+
+Arguments:
+    <functions_before>:
+        Used for the output 'Defined at' & 'Backtrace' sections.
+        Which function which to mark with the error.
+        - '0': The function calling invalid_function_usage()
+        - '1': 1 function before that
+        - '2': 2 functions before that
+        - '#': etc.
+    <function_id>:
+        Used for the output 'Help text' section.
+        Function ID used to register the function help text & flags:
+        - register_hel main.sh sources script_1.invalid_function_p_test()
+        - register_function_flags()
+    <extra_info>:
+        Single-/Multi-line with extra info.
+        - Example:
+            "Invalid input <arg_two>: '\$arg_two'"
+    <start_output_message>:
+        First line of the error message, indicating what kind of error.
+
+        By defining the variable PLACEHOLDER_FUNC_NAME inside the function
+        calling _error_call() and including "\${PLACEHOLDER_FUNC_NAME}" in the
+        <start_message>, it will be replaced with the function name based upon
+        <functions_before>.
+
+        - Example:
+            local PLACEHOLDER_FUNC_NAME='<__PLACEHOLDER_FUNC_NAME__>'
+            start_output_message="Error in \${PLACEHOLDER_FUNC_NAME}"
+
+Help text for _error_call():
+
+$(get_help_text '_error_call')
+END_OF_HELP_TEXT
+
+_dumb_add_function_flags_and_help_text "$((_function_index_dumb_add++))" \
+    'invalid_function_usage' \
+    "$help_text"
+# invalid_function_usage() help text
+###
+
+###
 # Dumb add function flags and help text for register_function_flags()
 define help_text <<END_OF_HELP_TEXT
 register_function_flags <function_id>
@@ -1280,6 +1331,8 @@ END_OF_VARIABLE_WITH_EVAL
 
 invalid_function_usage()
 {
+    check_for_help_flag 'invalid_function_usage' "$@"
+
     declare -r PLACEHOLDER_FUNC_NAME='<__PLACEHOLDER_FUNC_NAME__>'
     local start_message="Invalid usage of ${PLACEHOLDER_FUNC_NAME}"
 
