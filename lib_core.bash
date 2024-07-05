@@ -233,6 +233,8 @@ check_for_help_flag()
 
 get_help_text()
 {
+    check_for_help_flag 'get_help_text' "$@"
+
     local function_id="$1"
 
     ###
@@ -743,6 +745,25 @@ _dumb_add_function_flags_and_help_text $((_function_index_dumb_add++)) \
     'register_help_text' \
     "$help_text"
 # register_help_text() help text
+###
+
+###
+# Dumb add function flags and help text for get_help_text()
+define help_text <<END_OF_HELP_TEXT
+get_help_text <function_id>
+
+Outputs the help text of the requested <function_id> which have been registered
+using register_help_text().
+
+Arguments:
+    <function_id>:
+        The function id to get the help text from
+END_OF_HELP_TEXT
+
+_dumb_add_function_flags_and_help_text $((_function_index_dumb_add++)) \
+    'get_help_text' \
+    "$help_text"
+# get_help_text() help text
 ###
 
 ################################################################################
