@@ -766,6 +766,29 @@ _dumb_add_function_flags_and_help_text $((_function_index_dumb_add++)) \
 # get_help_text() help text
 ###
 
+###
+# Dumb add function flags and help text for get_help_text()
+define help_text <<'END_OF_HELP_TEXT'
+_handle_args <function_id> "$@"
+
+Used for handling input arguments. This includes flags registered through
+register_function_flags().
+
+Arguments:
+    <function_id>:
+        * Each function can have its own set of flags. The function id is used
+          for identifying which flags to parse and how to parse them.
+            - Function id can e.g. be the function name.
+        * Should be registered through register_function_flags() before calling
+          this function
+END_OF_HELP_TEXT
+
+_dumb_add_function_flags_and_help_text $((_function_index_dumb_add++)) \
+    '_handle_args' \
+    "$help_text"
+# _handle_args() help text
+###
+
 ################################################################################
 ################################################################################
 ##### End of dumb adding function flags & help texts.
@@ -1613,6 +1636,8 @@ END_OF_ERROR_INFO
 # Process flags & non-optional arguments
 _handle_args()
 {
+    check_for_help_flag '_handle_args' "$@"
+
     local function_id="$1"
     shift
     local arguments=("$@")
