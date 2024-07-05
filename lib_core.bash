@@ -1462,8 +1462,33 @@ _handle_args_invalid_function_usage()
     functions_before="${non_flagged_args[0]}"
     function_id="${non_flagged_args[1]}"
     extra_info="${non_flagged_args[2]}"
+
+    # Validate to be number as we will manipulate it. Thereby a need to check it
+    # before calling _error_call() instead of relying on its check
+    _validate_functions_before_variable 'invalid_function_usage' "$functions_before"
 }
 
+_validate_functions_before_variable()
+{
+    local function_id_calling_this_func="$1"
+    local functions_before="$2"
+
+    local number_re='^[0-9]+$'
+    if ! [[ $functions_before =~ $number_re ]]
+    then
+        local error_info="Given <functions_before> is not a number: '$functions_before'"
+        local functions_before=2
+        declare -r PLACEHOLDER_FUNC_NAME='<__PLACEHOLDER_FUNC_NAME__>'
+        local start_output_message="Invalid usage of ${PLACEHOLDER_FUNC_NAME}"
+
+        _error_call "$functions_before" \
+                    "$function_id_calling_this_func" \
+                    "$error_info" \
+                    "$start_output_message" \
+                    --backtrace-level 0
+        exit 1
+    fi
+}
 
 # Register valid flags for a function
 #
@@ -2049,22 +2074,71 @@ END_OF_FUNCTION_USAGE
 
 error()
 {
+    local functions_before
+    local function_id
+    local extra_info
+
+    _handle_args_error "$@"
+    shift 3
+
     declare -r PLACEHOLDER_FUNC_NAME='<__PLACEHOLDER_FUNC_NAME__>'
     local start_message="Error in ${PLACEHOLDER_FUNC_NAME}"
 
-    # Pass first 3 arguments, then 'start_message' and
-    # thereafter all the rest. All the rest can be optional flags etc.
-    _error_call_wrapper "${@:1:3}" "$start_message" "${@:4}"
+    # Pass potential flags with "$@"
+    _error_call "$((functions_before + 1))" \
+                "$function_id" \
+                "$extra_info" \
+                "$start_message" \
+                --backtrace-level 1 \
+                "$@"
 }
+
+_handle_args_error()
+{
+    _handle_args 'error' "$@"
+
+    functions_before="${non_flagged_args[0]}"
+    function_id="${non_flagged_args[1]}"
+    extra_info="${non_flagged_args[2]}"
+
+    # Validate to be number as we will manipulate it. Thereby a need to check it
+    # before calling _error_call() instead of relying on its check
+    _validate_functions_before_variable 'error' "$functions_before"
+}
+
 
 warning()
 {
+    local functions_before
+    local function_id
+    local extra_info
+
+    _handle_args_warning "$@"
+    shift 3
+
     declare -r PLACEHOLDER_FUNC_NAME='<__PLACEHOLDER_FUNC_NAME__>'
     local start_message="Warning in ${PLACEHOLDER_FUNC_NAME}"
 
-    # Pass first 3 arguments, then 'start_message' and
-    # thereafter all the rest. All the rest can be optional flags etc.
-    _error_call_wrapper "${@:1:3}" "$start_message" "${@:4}"
+    # Pass potential flags with "$@"
+    _error_call "$((functions_before + 1))" \
+                "$function_id" \
+                "$extra_info" \
+                "$start_message" \
+                --backtrace-level 1 \
+                "$@"
+}
+
+_handle_args_warning()
+{
+    _handle_args 'warning' "$@"
+
+    functions_before="${non_flagged_args[0]}"
+    function_id="${non_flagged_args[1]}"
+    extra_info="${non_flagged_args[2]}"
+
+    # Validate to be number as we will manipulate it. Thereby a need to check it
+    # before calling _error_call() instead of relying on its check
+    _validate_functions_before_variable 'warning' "$functions_before"
 }
 
 # Only store output in multi-file unique readonly global variables or
