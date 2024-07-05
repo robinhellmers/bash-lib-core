@@ -220,6 +220,13 @@ check_for_help_flag()
     shift
     local arguments=("$@")
 
+    # Check help flag for this function
+    if [[ "$function_id" == '-h' || "$function_id" == '--help' ]]
+    then
+        get_help_text 'check_for_help_flag'
+        exit 0
+    fi
+
     # Look for help flag -h/--help
     for arg in "${arguments[@]}"
     do
@@ -356,6 +363,29 @@ get_help_text()
 ##### 'ALLOW FUNCTION CALLS register_function_flags() & register_help_text()'
 ################################################################################
 ################################################################################
+
+###
+# Dumb add function flags and help text for check_for_help_flag()
+define help_text <<'END_OF_HELP_TEXT'
+check_for_help_flag <function_id> "$@"
+
+Used to check for the -h/--help flags in the function arguments "$@". If found,
+it outputs the help text using the <function_id> registered help text.
+
+Arguments:
+    <function_id>:
+        ID of function which to output the help text for if a help flag is given
+        in the arguments "$@"
+
+Flags:
+    --strict-check-only-help-flag    Used to show help text if there is only a help flag given as argument, and nothing else.
+END_OF_HELP_TEXT
+
+_dumb_add_function_flags_and_help_text "$((_function_index_dumb_add++))" \
+    'check_for_help_flag' \
+    "$help_text"
+# check_for_help_flag() help text
+###
 
 ###
 # Dumb add function flags and help text for define()
