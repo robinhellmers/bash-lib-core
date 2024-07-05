@@ -1097,6 +1097,13 @@ _error_call()
         local func_def_file func_def_line_num
         local func_call_file func_call_line_num
         _get_func_info "$functions_before"
+
+        # Create PLACEHOLDER_FUNC_NAME in function calling this function.
+        # Use it for replacing function name inside this function
+        [[ -n "$PLACEHOLDER_FUNC_NAME" ]] &&
+            start_message="${start_message//${PLACEHOLDER_FUNC_NAME}/${func_name}()}"
+        
+        start_message="!! ${start_message}"
     fi
 
     local wrapper
@@ -1270,7 +1277,7 @@ _get_func_info()
 {
     local functions_before="$1"
 
-    ((functions_before++))
+    ((functions_before = functions_before + 2))
 
     func_name="${FUNCNAME[functions_before]}"
     func_def_file="${BASH_SOURCE[functions_before]}"
@@ -1440,6 +1447,13 @@ invalid_function_usage()
 
     # Pass first 3 arguments, then 'start_message' and
     # thereafter all the rest. All the rest can be optional flags etc.
+    _error_call "$((functions_before + 1))" \
+                "$function_id" \
+                "$extra_info" \
+                "$start_message" \
+                --backtrace-level 1 \
+                "$@"
+}
 
 _handle_args_invalid_function_usage()
 {
