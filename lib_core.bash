@@ -148,6 +148,8 @@ _handle_args_registered_help_text=()
 # END_OF_MESSAGE_WITH_EVAL
 define()
 {
+    check_for_help_flag 'define' "$@"
+
     IFS= read -r -d '' "$1" || true
     # Remove the trailing newline
     eval "$1=\${$1%$'\n'}"
@@ -212,6 +214,139 @@ _dumb_add_function_flags_and_help_text()
     done
 }
 
+check_for_help_flag()
+{
+    local function_id="$1"
+    shift
+    local arguments=("$@")
+
+    # Look for help flag -h/--help
+    for arg in "${arguments[@]}"
+    do
+        if [[ "$arg" == '-h' ]] || [[ "$arg" == '--help' ]]
+        then
+            get_help_text "$function_id"
+            exit 0
+        fi
+    done
+}
+
+get_help_text()
+{
+    check_for_help_flag 'get_help_text' "$@"
+
+    local function_id="$1"
+
+    ###
+    # Check that <function_id> is registered through register_help_text()
+    local function_registered='false'
+    for i in "${!_handle_args_registered_help_text_function_ids[@]}"
+    do
+        local current_function_id="${_handle_args_registered_help_text_function_ids[i]}"
+        if [[ "$function_id" == "$current_function_id" ]]
+        then
+            local registered_help_text="${_handle_args_registered_help_text[i]}"
+            function_registered='true'
+        fi
+    done
+
+    [[ "$function_registered" != 'true' ]] && return 1
+
+    ###
+    # Check that <function_id> is registered through register_function_flags()
+    local function_registered='false'
+    for i in "${!_handle_args_registered_function_ids[@]}"
+    do
+        if [[ "${_handle_args_registered_function_ids[$i]}" == "$function_id" ]]
+        then
+            function_registered='true'
+            function_index=$i
+            break
+        fi
+    done
+
+    ###
+    # Output first part of help text
+    echo "${registered_help_text}"
+
+    [[ "$function_registered" != 'true' ]] && return 0
+
+    ###
+    # Get flags and corresponding descriptions for <function_id>
+    local valid_short_options
+    local valid_long_options
+    local flags_descriptions
+    # Convert space separated elements into an array
+    IFS="${ARRAY_SEPARATOR}" read -ra valid_short_options <<< "${_handle_args_registered_function_short_option[function_index]}"
+    IFS="${ARRAY_SEPARATOR}" read -ra valid_long_options <<< "${_handle_args_registered_function_long_option[function_index]}"
+    IFS="${ARRAY_SEPARATOR}" read -ra flags_descriptions <<< "${_handle_args_registered_function_descriptions[function_index]}"
+
+    local array_flag_description_line=()
+    local max_line_length=0
+
+    ###
+    # Construct help text lines for each flag & find max line length
+    for i in "${!flags_descriptions[@]}"
+    do
+        local flag_description_line="  "
+
+        # Short flag
+        if [[ "${valid_short_options[i]}" != '_' ]]
+        then
+            flag_description_line+="${valid_short_options[i]}, "
+        fi
+
+        # Long flag
+        if [[ "${valid_long_options[i]}" != '_' ]]
+        then
+            flag_description_line+="${valid_long_options[i]}"
+        fi
+
+        flag_description_line+="   "
+
+        # Find out length
+        local line_length=$(wc -m <<< "$flag_description_line")
+        (( line_length-- ))
+        (( line_length > max_line_length )) && max_line_length=$line_length
+
+        array_flag_description_line+=("$flag_description_line")
+    done
+
+    ###
+    # Reconstruct lines with good whitespacing using max line length
+    for i in "${!array_flag_description_line[@]}"
+    do
+        local flag_description_line="${array_flag_description_line[i]}"
+        local line_length=$(wc -m <<< "$flag_description_line")
+        ((line_length--))
+
+        ###
+        # Calculate whitespace for line to line up with maximum length line
+        local extra_whitespace=''
+        if (( line_length < max_line_length ))
+        then
+            local diff_length=$((max_line_length - line_length))
+            extra_whitespace="$(printf "%.s " $(seq $diff_length))"
+        fi
+
+        ###
+        # Construct line
+        flag_description_line="${flag_description_line}${extra_whitespace}${flags_descriptions[i]}"
+        array_flag_description_line[i]="$flag_description_line"
+    done
+
+    ###
+    # Output flag description lines
+    echo
+    echo "Flags:"
+    for line in "${array_flag_description_line[@]}"
+    do
+        echo "$line"
+    done
+
+    return 0
+}
+
 ################################################################################
 ################################################################################
 ##### Dumb add function flags & help texts for the most important functions.
@@ -221,6 +356,334 @@ _dumb_add_function_flags_and_help_text()
 ##### 'ALLOW FUNCTION CALLS register_function_flags() & register_help_text()'
 ################################################################################
 ################################################################################
+
+###
+# Dumb add function flags and help text for define()
+define help_text <<END_OF_HELP_TEXT
+Easily creates variable with multiline text. With or without evaluation.
+Utilizes heredoc as seen in the examples below.
+
+For no evaluation, having the exact text stored in the variable:
+
+    define <varname> <<'END_OF_TEXT'
+<text>
+<text>
+END_OF_TEXT
+
+For evaluation, of e.g. variables and backslash:
+
+    define <varname> <<END_OF_TEXT
+<text>
+<text>
+END_OF_TEXT
+END_OF_HELP_TEXT
+
+_dumb_add_function_flags_and_help_text "$((_function_index_dumb_add++))" \
+    'define' \
+    "$help_text"
+# define() help text
+###
+
+###
+# Dumb add function flags and help text for get_func_def_line_num()
+define help_text <<END_OF_HELP_TEXT
+get_func_def_line_num <func_name> <script_file>
+
+Finds defined function <func_name> in <script_file> and outputs its definition
+line number if exactly 1 instance is found. It does only look for functions
+defined in the form:
+
+    my_func()
+
+and thereby not
+
+    function myfunc
+
+Arguments:
+    <func_name>:
+        The name of the function to look for
+    <script_file>:
+        The file to look for the function in
+
+Return value:
+    0 if successful
+    Non-zero if failure
+END_OF_HELP_TEXT
+
+_dumb_add_function_flags_and_help_text "$((_function_index_dumb_add++))" \
+    'get_func_def_line_num' \
+    "$help_text"
+# get_func_def_line_num() help text
+###
+
+###
+# Dumb add function flags and help text for is_short_flag()
+define help_text <<END_OF_HELP_TEXT
+is_short_flag <to_check>
+
+Checks whether given <to_check> is a short flag, that is with a single hyphen
+and that there is a single character after the hyphen.
+
+Arguments:
+    <to_check>: The text to check if it is a short flag
+
+Return value:
+    0 if it is a short flag
+    1 if empty
+    2 if double hyphen
+    3 if not single character
+END_OF_HELP_TEXT
+
+_dumb_add_function_flags_and_help_text "$((_function_index_dumb_add++))" \
+    'is_short_flag' \
+    "$help_text"
+# is_short_flag() help text
+###
+
+###
+# Dumb add function flags and help text for is_long_flag()
+define help_text <<END_OF_HELP_TEXT
+is_long_flag <to_check>
+
+Checks whether given <to_check> is a long flag, that is with a double hyphen
+and that the following text can be converted to a variable.
+
+Arguments:
+    <to_check>: The text to check if it is a long flag
+
+Return value:
+    0 if it is a long flag
+    1 if empty
+    2 if not double hyphen
+    3 if not possible to create valid variable name from the following text
+END_OF_HELP_TEXT
+
+_dumb_add_function_flags_and_help_text "$((_function_index_dumb_add++))" \
+    'is_long_flag' \
+    "$help_text"
+# is_long_flag() help text
+###
+
+###
+# Dumb add function flags and help text for get_long_flag_var_name()
+define help_text <<END_OF_HELP_TEXT
+get_long_flag_var_name <long_flag>
+
+Checks whether <long_flag> can be converted to a variable name. Replaces hyphens
+with underscores. Echos the variable name.
+
+Arguments:
+    <long_flag>: The long flag, including double hyphen, to convert to
+                 variable name
+
+Return value:
+    0 if successful in converting to variable name
+    1 if not possible to convert to variable name
+END_OF_HELP_TEXT
+
+_dumb_add_function_flags_and_help_text "$((_function_index_dumb_add++))" \
+    'get_long_flag_var_name' \
+    "$help_text"
+# get_long_flag_var_name() help text
+###
+
+###
+# Dumb add function flags and help text for valid_var_name()
+define help_text <<END_OF_HELP_TEXT
+valid_var_name <var_name>
+
+Checks whether <var_name> is a valid variable name.
+
+Arguments:
+    <valid_var_name>: The text to check if valid variable
+
+Return value:
+    0 if valid
+    Non-zero if invalid
+END_OF_HELP_TEXT
+
+_dumb_add_function_flags_and_help_text "$((_function_index_dumb_add++))" \
+    'valid_var_name' \
+    "$help_text"
+# valid_var_name() help text
+###
+
+###
+# Dumb add function flags and help text for backtrace()
+define help_text <<END_OF_HELP_TEXT
+backtrace [level_function_callstack]
+
+Prints the function callstack at the current state.
+
+Arguments:
+    [level_function_callstack]: Optional.
+        How far back in the function callstack to show.
+        0 - includes backtrace() call
+        1 - includes the function calling backtrace()
+        2 - includes 2 function above backtrace()
+        etc.
+
+Return value:
+    Always 0
+END_OF_HELP_TEXT
+
+_dumb_add_function_flags_and_help_text "$((_function_index_dumb_add++))" \
+    'backtrace' \
+    "$help_text"
+# backtrace() help text
+###
+
+###
+# Dumb add function flags and help text for _error_call()
+define help_text <<'END_OF_HELP_TEXT'
+_error_call <functions_before>
+            <function_id>
+            <extra_info>
+            <start_output_message>
+
+Arguments:
+    <functions_before>:
+        Used for the output 'Defined at' & 'Backtrace' sections.
+        Which function which to mark with the error.
+        - '0': This function: _error_call()
+        - '1': 1 function before this. Which calls _error_call()
+        - '2': 2 functions before this
+    <function_id>:
+        Used for the output 'Help text' section.
+        Function ID used to register the function help text & flags:
+        - register_help_test()
+        - register_function_flags()
+    <extra_info>:
+        Single-/Multi-line with extra info.
+        - Example:
+            "Invalid input <arg_two>: '$arg_two'"
+    <start_output_message>:
+        First line of the error message, indicating what kind of error.
+        - Example:
+            "Error in ${func_name}()"
+END_OF_HELP_TEXT
+
+_dumb_add_function_flags_and_help_text "$((_function_index_dumb_add++))" \
+    '_error_call' \
+    "$help_text" \
+    '' '--backtrace-level' 'true' \
+    "<num> - How deep to backtrace function calls. <num> function calls before _error_call()" \
+    '' '--no-defined-at' 'false' \
+    "Do not output where the function called function is defined at." \
+    '' '--no-backtrace' 'false' \
+    "Do not output a backtrace of function calls." \
+    '' '--no-extra-info' 'false' \
+    "Do not output extra info." \
+    '' '--no-help-text' 'false' \
+    "Do not output a function help text" \
+    '' '--manual-help-text' 'true' \
+    "Instead of using '<function_id> to get the help text, give the help text manually."
+# _error_call() help text
+###
+
+###
+# Dumb add function flags and help text for _error_call_wrapper()
+define help_text <<END_OF_HELP_TEXT
+_error_call_wrapper <functions_before>
+                    <function_id>
+                    <extra_info>
+                    <start_output_message>
+
+Wrapper to _error_call(). Can probably be integrated directly into _error_call()
+at this stage.
+
+By defining the variable PLACEHOLDER_FUNC_NAME inside the function calling
+_error_call_wrapper() and including it "\${PLACEHOLDER_FUNC_NAME}" in the
+<start_message>, it will be replaced with the function name based upon
+<functions_before>.
+
+All the rest of the arguments e.g. flags will be passed to _error_call(), see
+the help text of _error_call() for more information.
+
+Arguments:
+    <functions_before>:
+        Used for the output 'Defined at' & 'Backtrace' sections.
+        Which function which to mark with the error.
+        - '0': This function: _error_call()
+        - '1': 1 function before this. Which calls _error_call()
+        - '2': 2 functions before this
+    <function_id>:
+        Used for the output 'Help text' section.
+        Function ID used to register the function help text & flags:
+        - register_help_test()
+        - register_function_flags()
+    <extra_info>:
+        Single-/Multi-line with extra info.
+        - Example:
+            "Invalid input <arg_two>: '\$arg_two'"
+    <start_output_message>:
+        First line of the error message, indicating what kind of error.
+        - Example:
+            local PLACEHOLDER_FUNC_NAME='<__PLACEHOLDER_FUNC_NAME__>'
+            "Error in \${PLACEHOLDER_FUNC_NAME}()"
+
+
+Help text for _error_call():
+
+$(get_help_text '_error_call')
+END_OF_HELP_TEXT
+
+_dumb_add_function_flags_and_help_text "$((_function_index_dumb_add++))" \
+    '_error_call_wrapper' \
+    "$help_text"
+# _error_call_wrapper() help text
+###
+
+###
+# Dumb add function flags and help text for invalid_function_usage()
+define help_text <<END_OF_HELP_TEXT
+invalid_function_usage <functions_before>
+                       <function_id>
+                       <extra_info>
+                       <start_output_message>
+
+All the rest of the arguments e.g. flags will be passed to _error_call(), see
+the help text of _error_call() for more information.
+
+Arguments:
+    <functions_before>:
+        Used for the output 'Defined at' & 'Backtrace' sections.
+        Which function which to mark with the error.
+        - '0': The function calling invalid_function_usage()
+        - '1': 1 function before that
+        - '2': 2 functions before that
+        - '#': etc.
+    <function_id>:
+        Used for the output 'Help text' section.
+        Function ID used to register the function help text & flags:
+        - register_hel main.sh sources script_1.invalid_function_p_test()
+        - register_function_flags()
+    <extra_info>:
+        Single-/Multi-line with extra info.
+        - Example:
+            "Invalid input <arg_two>: '\$arg_two'"
+    <start_output_message>:
+        First line of the error message, indicating what kind of error.
+
+        By defining the variable PLACEHOLDER_FUNC_NAME inside the function
+        calling _error_call() and including "\${PLACEHOLDER_FUNC_NAME}" in the
+        <start_message>, it will be replaced with the function name based upon
+        <functions_before>.
+
+        - Example:
+            local PLACEHOLDER_FUNC_NAME='<__PLACEHOLDER_FUNC_NAME__>'
+            start_output_message="Error in \${PLACEHOLDER_FUNC_NAME}"
+
+Help text for _error_call():
+
+$(get_help_text '_error_call')
+END_OF_HELP_TEXT
+
+_dumb_add_function_flags_and_help_text "$((_function_index_dumb_add++))" \
+    'invalid_function_usage' \
+    "$help_text"
+# invalid_function_usage() help text
+###
 
 ###
 # Dumb add function flags and help text for register_function_flags()
@@ -281,53 +744,49 @@ END_OF_HELP_TEXT
 _dumb_add_function_flags_and_help_text $((_function_index_dumb_add++)) \
     'register_help_text' \
     "$help_text"
+# register_help_text() help text
 ###
 
 ###
-# Dumb add function flags and help text for _error_call()
-define help_text <<'END_OF_HELP_TEXT'
-_error_call <functions_before>
-            <function_id>
-            <extra_info>
-            <start_output_message>
+# Dumb add function flags and help text for get_help_text()
+define help_text <<END_OF_HELP_TEXT
+get_help_text <function_id>
+
+Outputs the help text of the requested <function_id> which have been registered
+using register_help_text().
 
 Arguments:
-    <functions_before>:
-        Used for the output 'Defined at' & 'Backtrace' sections.
-        Which function which to mark with the error.
-        - '0': This function: _error_call()
-        - '1': 1 function before this. Which calls _error_call()
-        - '2': 2 functions before this
     <function_id>:
-        Used for the output 'Help text' section.
-        Function ID used to register the function help text & flags:
-        - register_help_test()
-        - register_function_flags()
-    <extra_info>:
-        Single-/Multi-line with extra info.
-        - Example:
-            "Invalid input <arg_two>: '$arg_two'"
-    <start_output_message>:
-        First line of the error message, indicating what kind of error.
-        - Example:
-            "Error in ${func_name}()"
+        The function id to get the help text from
 END_OF_HELP_TEXT
 
-_dumb_add_function_flags_and_help_text "$((_function_index_dumb_add++))" \
-    '_error_call' \
-    "$help_text" \
-    '' '--backtrace-level' 'true' \
-    "<num> - How deep to backtrace function calls. <num> function calls before _error_call()" \
-    '' '--no-defined-at' 'false' \
-    "Do not output where the function called function is defined at." \
-    '' '--no-backtrace' 'false' \
-    "Do not output a backtrace of function calls." \
-    '' '--no-extra-info' 'false' \
-    "Do not output extra info." \
-    '' '--no-help-text' 'false' \
-    "Do not output a function help text" \
-    '' '--manual-help-text' 'true' \
-    "Instead of using '<function_id> to get the help text, give the help text manually."
+_dumb_add_function_flags_and_help_text $((_function_index_dumb_add++)) \
+    'get_help_text' \
+    "$help_text"
+# get_help_text() help text
+###
+
+###
+# Dumb add function flags and help text for get_help_text()
+define help_text <<'END_OF_HELP_TEXT'
+_handle_args <function_id> "$@"
+
+Used for handling input arguments. This includes flags registered through
+register_function_flags().
+
+Arguments:
+    <function_id>:
+        * Each function can have its own set of flags. The function id is used
+          for identifying which flags to parse and how to parse them.
+            - Function id can e.g. be the function name.
+        * Should be registered through register_function_flags() before calling
+          this function
+END_OF_HELP_TEXT
+
+_dumb_add_function_flags_and_help_text $((_function_index_dumb_add++)) \
+    '_handle_args' \
+    "$help_text"
+# _handle_args() help text
 ###
 
 ################################################################################
@@ -338,6 +797,8 @@ _dumb_add_function_flags_and_help_text "$((_function_index_dumb_add++))" \
 
 get_func_def_line_num()
 {
+    check_for_help_flag 'get_func_def_line_num' "$@"
+
     local func_name=$1
     local script_file=$2
 
@@ -351,6 +812,8 @@ get_func_def_line_num()
 
 is_short_flag()
 {
+    check_for_help_flag 'is_short_flag' "$@"
+
     local to_check="$1"
 
     [[ -z "$to_check" ]] && return 1
@@ -366,6 +829,8 @@ is_short_flag()
 
 is_long_flag()
 {
+    check_for_help_flag 'is_long_flag' "$@"
+
     local to_check="$1"
 
     [[ -z "$to_check" ]] && return 1
@@ -382,6 +847,8 @@ is_long_flag()
 # Outputs valid variable name if the flag is valid, replaces hyphen with underscore
 get_long_flag_var_name()
 {
+    check_for_help_flag 'get_long_flag_var_name' "$@"
+
     local long_flag="${1#--}" # Remove initial --
 
     grep -q '^[[:alpha:]][-[:alpha:][:digit:]]*$' <<< "$long_flag" || return 1
@@ -396,11 +863,15 @@ get_long_flag_var_name()
 
 valid_var_name()
 {
+    check_for_help_flag 'valid_var_name' "$@"
+
     grep -q '^[_[:alpha:]][_[:alpha:][:digit:]]*$' <<< "$1"
 }
 
 backtrace()
 {
+    check_for_help_flag 'backtrace' "$@"
+
     local level_function_callstack=$1
 
     # How much to include in function call stack
@@ -534,6 +1005,8 @@ EOM
 
 _error_call()
 {
+    check_for_help_flag '_error_call' "$@"
+
     local functions_before
     local function_id
     local extra_info
@@ -842,6 +1315,8 @@ END_OF_VARIABLE_WITH_EVAL
 
 _error_call_wrapper()
 {
+    check_for_help_flag '_error_call_wrapper' "$@"
+
     # functions_before=0 represents the function 1 call from this function,
     #                    that is: The function calling invalid_function_usage()
     # functions_before=1 represents the function 2 calls from this function
@@ -900,6 +1375,8 @@ END_OF_VARIABLE_WITH_EVAL
 
 invalid_function_usage()
 {
+    check_for_help_flag 'invalid_function_usage' "$@"
+
     declare -r PLACEHOLDER_FUNC_NAME='<__PLACEHOLDER_FUNC_NAME__>'
     local start_message="Invalid usage of ${PLACEHOLDER_FUNC_NAME}"
 
@@ -1156,123 +1633,11 @@ END_OF_ERROR_INFO
     fi
 }
 
-get_help_text()
-{
-    local function_id="$1"
-
-    ###
-    # Check that <function_id> is registered through register_help_text()
-    local function_registered='false'
-    for i in "${!_handle_args_registered_help_text_function_ids[@]}"
-    do
-        local current_function_id="${_handle_args_registered_help_text_function_ids[i]}"
-        if [[ "$function_id" == "$current_function_id" ]]
-        then
-            local registered_help_text="${_handle_args_registered_help_text[i]}"
-            function_registered='true'
-        fi
-    done
-
-    [[ "$function_registered" != 'true' ]] && return 1
-
-    ###
-    # Check that <function_id> is registered through register_function_flags()
-    local function_registered='false'
-    for i in "${!_handle_args_registered_function_ids[@]}"
-    do
-        if [[ "${_handle_args_registered_function_ids[$i]}" == "$function_id" ]]
-        then
-            function_registered='true'
-            function_index=$i
-            break
-        fi
-    done
-
-    ###
-    # Output first part of help text
-    echo "${registered_help_text}"
-
-    [[ "$function_registered" != 'true' ]] && return 0
-
-    ###
-    # Get flags and corresponding descriptions for <function_id>
-    local valid_short_options
-    local valid_long_options
-    local flags_descriptions
-    # Convert space separated elements into an array
-    IFS="${ARRAY_SEPARATOR}" read -ra valid_short_options <<< "${_handle_args_registered_function_short_option[function_index]}"
-    IFS="${ARRAY_SEPARATOR}" read -ra valid_long_options <<< "${_handle_args_registered_function_long_option[function_index]}"
-    IFS="${ARRAY_SEPARATOR}" read -ra flags_descriptions <<< "${_handle_args_registered_function_descriptions[function_index]}"
-
-    local array_flag_description_line=()
-    local max_line_length=0
-
-    ###
-    # Construct help text lines for each flag & find max line length
-    for i in "${!flags_descriptions[@]}"
-    do
-        local flag_description_line="  "
-
-        # Short flag
-        if [[ "${valid_short_options[i]}" != '_' ]]
-        then
-            flag_description_line+="${valid_short_options[i]}, "
-        fi
-
-        # Long flag
-        if [[ "${valid_long_options[i]}" != '_' ]]
-        then
-            flag_description_line+="${valid_long_options[i]}"
-        fi
-
-        flag_description_line+="   "
-
-        # Find out length
-        local line_length=$(wc -m <<< "$flag_description_line")
-        (( line_length-- ))
-        (( line_length > max_line_length )) && max_line_length=$line_length
-
-        array_flag_description_line+=("$flag_description_line")
-    done
-
-    ###
-    # Reconstruct lines with good whitespacing using max line length
-    for i in "${!array_flag_description_line[@]}"
-    do
-        local flag_description_line="${array_flag_description_line[i]}"
-        local line_length=$(wc -m <<< "$flag_description_line")
-        ((line_length--))
-
-        ###
-        # Calculate whitespace for line to line up with maximum length line
-        local extra_whitespace=''
-        if (( line_length < max_line_length ))
-        then
-            local diff_length=$((max_line_length - line_length))
-            extra_whitespace="$(printf "%.s " $(seq $diff_length))"
-        fi
-
-        ###
-        # Construct line
-        flag_description_line="${flag_description_line}${extra_whitespace}${flags_descriptions[i]}"
-        array_flag_description_line[i]="$flag_description_line"
-    done
-
-    ###
-    # Output flag description lines
-    echo
-    echo "Flags:"
-    for line in "${array_flag_description_line[@]}"
-    do
-        echo "$line"
-    done
-
-    return 0
-}
-
 # Process flags & non-optional arguments
 _handle_args()
 {
+    check_for_help_flag '_handle_args' "$@"
+
     local function_id="$1"
     shift
     local arguments=("$@")
@@ -1291,15 +1656,7 @@ END_OF_FUNCTION_USAGE
     # Output:
     # function_index
 
-    # Look for help flag -h/--help
-    for arg in "${arguments[@]}"
-    do
-        if [[ "$arg" == '-h' ]] || [[ "$arg" == '--help' ]]
-        then
-            get_help_text "$function_id"
-            exit 0
-        fi
-    done
+    check_for_help_flag "$function_id" "${arguments[@]}"
 
     local valid_short_options
     local valid_long_options
