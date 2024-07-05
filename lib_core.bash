@@ -743,6 +743,8 @@ EOM
 
 _error_call()
 {
+    check_for_help_flag '_error_call' "$@"
+
     local functions_before
     local function_id
     local extra_info
