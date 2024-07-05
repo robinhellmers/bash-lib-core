@@ -834,6 +834,8 @@ Arguments:
             - Function id can e.g. be the function name.
         * Should be registered through register_function_flags() before calling
           this function
+Flags:
+    --allow-non-registered-flags    Will allow pass-through and not exit if unregistered flag is used
 END_OF_HELP_TEXT
 
 _dumb_add_function_flags_and_help_text $((_function_index_dumb_add++)) \
@@ -1058,8 +1060,6 @@ EOM
 
 _error_call()
 {
-    check_for_help_flag '_error_call' "$@"
-
     local functions_before
     local function_id
     local extra_info
@@ -1428,14 +1428,26 @@ END_OF_VARIABLE_WITH_EVAL
 
 invalid_function_usage()
 {
-    check_for_help_flag 'invalid_function_usage' "$@"
+    local functions_before
+    local function_id
+    local extra_info
+
+    _handle_args_invalid_function_usage "$@"
+    shift 3
 
     declare -r PLACEHOLDER_FUNC_NAME='<__PLACEHOLDER_FUNC_NAME__>'
     local start_message="Invalid usage of ${PLACEHOLDER_FUNC_NAME}"
 
     # Pass first 3 arguments, then 'start_message' and
     # thereafter all the rest. All the rest can be optional flags etc.
-    _error_call_wrapper "${@:1:3}" "$start_message" "${@:4}"
+
+_handle_args_invalid_function_usage()
+{
+    _handle_args 'invalid_function_usage' --allow-non-registered-flags "$@"
+
+    functions_before="${non_flagged_args[0]}"
+    function_id="${non_flagged_args[1]}"
+    extra_info="${non_flagged_args[2]}"
 }
 
 
@@ -1705,6 +1717,15 @@ Usage: _handle_args <function_id> "$@"
           this function
 END_OF_FUNCTION_USAGE
 
+    local allow_non_registered_flags_handle_args='false'
+    for arg in "${arguments[@]}"
+    do
+        if [[ "$arg" == '--allow-non-registered-flags' ]]
+        then
+            allow_non_registered_flags_handle_args='true'
+        fi
+    done
+
     _validate_input_handle_args
     # Output:
     # function_index
@@ -1821,7 +1842,8 @@ END_OF_ERROR_INFO
             fi
         done
 
-        if [[ "$was_option_handled" != 'true' ]]
+        if [[ "$allow_non_registered_flags_handle_args" != 'true' &&
+              "$was_option_handled" != 'true' ]]
         then
             define error_info <<END_OF_ERROR_INFO
 Given flag '${arguments[i]}' is not registered for function id: '$function_id'
