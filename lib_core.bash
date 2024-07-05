@@ -227,15 +227,38 @@ check_for_help_flag()
         exit 0
     fi
 
+    # Look for flag --strict-check-only-help-flag
+    local strict_check='false'
+    for arg in "${arguments[@]}"
+    do
+        if [[ "$arg" == '--strict-check-only-help-flag' ]]
+        then
+            strict_check='true'
+        fi
+    done
+
+    local found_help_flag='false'
+    local found_other='false'
     # Look for help flag -h/--help
     for arg in "${arguments[@]}"
     do
         if [[ "$arg" == '-h' ]] || [[ "$arg" == '--help' ]]
         then
-            get_help_text "$function_id"
-            exit 0
+            found_help_flag='true'
+        else
+            found_other='true'
         fi
     done
+
+    [[ "$found_help_flag" != 'true' ]] && return 0
+
+    if [[ "$strict_check" == 'true' && "$found_other" == 'true' ]] 
+    then
+        return 0
+    fi
+
+    get_help_text "$function_id"
+    exit 0
 }
 
 get_help_text()
@@ -1666,7 +1689,7 @@ END_OF_ERROR_INFO
 # Process flags & non-optional arguments
 _handle_args()
 {
-    check_for_help_flag '_handle_args' "$@"
+    check_for_help_flag '_handle_args' --strict-check-only-help-flag "$@"
 
     local function_id="$1"
     shift
