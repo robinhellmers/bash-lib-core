@@ -648,59 +648,6 @@ _dumb_add_function_flags_and_help_text "$((_function_index_dumb_add++))" \
 ###
 
 ###
-# Dumb add function flags and help text for _error_call_wrapper()
-define help_text <<END_OF_HELP_TEXT
-_error_call_wrapper <functions_before>
-                    <function_id>
-                    <extra_info>
-                    <start_output_message>
-
-Wrapper to _error_call(). Can probably be integrated directly into _error_call()
-at this stage.
-
-By defining the variable PLACEHOLDER_FUNC_NAME inside the function calling
-_error_call_wrapper() and including it "\${PLACEHOLDER_FUNC_NAME}" in the
-<start_message>, it will be replaced with the function name based upon
-<functions_before>.
-
-All the rest of the arguments e.g. flags will be passed to _error_call(), see
-the help text of _error_call() for more information.
-
-Arguments:
-    <functions_before>:
-        Used for the output 'Defined at' & 'Backtrace' sections.
-        Which function which to mark with the error.
-        - '0': This function: _error_call()
-        - '1': 1 function before this. Which calls _error_call()
-        - '2': 2 functions before this
-    <function_id>:
-        Used for the output 'Help text' section.
-        Function ID used to register the function help text & flags:
-        - register_help_test()
-        - register_function_flags()
-    <extra_info>:
-        Single-/Multi-line with extra info.
-        - Example:
-            "Invalid input <arg_two>: '\$arg_two'"
-    <start_output_message>:
-        First line of the error message, indicating what kind of error.
-        - Example:
-            local PLACEHOLDER_FUNC_NAME='<__PLACEHOLDER_FUNC_NAME__>'
-            "Error in \${PLACEHOLDER_FUNC_NAME}()"
-
-
-Help text for _error_call():
-
-$(get_help_text '_error_call')
-END_OF_HELP_TEXT
-
-_dumb_add_function_flags_and_help_text "$((_function_index_dumb_add++))" \
-    '_error_call_wrapper' \
-    "$help_text"
-# _error_call_wrapper() help text
-###
-
-###
 # Dumb add function flags and help text for invalid_function_usage()
 define help_text <<END_OF_HELP_TEXT
 invalid_function_usage <functions_before>
@@ -1403,66 +1350,6 @@ _append_end_wrapper_output_message()
 ${output_message}
 ${wrapper}
 END_OF_VARIABLE_WITH_EVAL
-}
-
-_error_call_wrapper()
-{
-    check_for_help_flag '_error_call_wrapper' "$@"
-
-    # functions_before=0 represents the function 1 call from this function,
-    #                    that is: The function calling invalid_function_usage()
-    # functions_before=1 represents the function 2 calls from this function
-    local functions_before=$1
-    local function_id="$2"
-    local error_info="$3"
-    local start_message="$4"
-    shift 4
-
-    _validate_input_error_call_wrapper
-
-    local func_name="${FUNCNAME[functions_before + 2]}"
-
-    # Create PLACEHOLDER_FUNC_NAME in function calling this function.
-    # Use it for replacing function name inside this function
-    [[ -n "$PLACEHOLDER_FUNC_NAME" ]] &&
-        start_message="${start_message//${PLACEHOLDER_FUNC_NAME}/${func_name}()}"
-
-    start_message="!! ${start_message}"
-
-    _error_call "$((functions_before + 3))" \
-                "$function_id" \
-                "$error_info" \
-                "$start_message" \
-                --backtrace-level 2 \
-                "$@" # For possible extra flags
-}
-
-_validate_input_error_call_wrapper()
-{
-    local re='^[0-9]+$'
-    if ! [[ $functions_before =~ $re ]]
-    then
-        local error_info="Given <functions_before> is not a number: '$functions_before'"
-        local functions_before=0
-        local function_id=''
-        local start_output_message="!! Invalid usage of invalid_function_usage()"
-        define help_text <<END_OF_VARIABLE_WITH_EVAL
-${func_name} <functions_before> <function_id> <error_info>
-
-Uses _error_call() and it is possible to pass flags to _error_call(). See help
-text of error_call().
-
-Help text error_call():
-$(get_help_text '_error_call')
-END_OF_VARIABLE_WITH_EVAL
-
-        _error_call "$functions_before" \
-                    "$function_id" \
-                    "$error_info" \
-                    "$start_output_message" \
-                    --manual-help-text "$help_text"
-        exit 1
-    fi
 }
 
 invalid_function_usage()
