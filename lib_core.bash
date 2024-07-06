@@ -380,7 +380,6 @@ get_flags_info()
 
     ###
     # Output flag description lines
-    echo
     echo "Flags:"
     for line in "${array_flag_description_line[@]}"
     do
@@ -655,8 +654,8 @@ invalid_function_usage <functions_before>
                        <extra_info>
                        <start_output_message>
 
-All the rest of the arguments e.g. flags will be passed to _error_call(), see
-the help text of _error_call() for more information.
+Indicates invalid usage of a function. Includes backtrace, function definition,
+extra info and help text.
 
 Arguments:
     <functions_before>:
@@ -687,9 +686,7 @@ Arguments:
             local PLACEHOLDER_FUNC_NAME='<__PLACEHOLDER_FUNC_NAME__>'
             start_output_message="Error in \${PLACEHOLDER_FUNC_NAME}"
 
-Help text for _error_call():
-
-$(get_help_text '_error_call')
+$(get_flags_info '_error_call')
 END_OF_HELP_TEXT
 
 _dumb_add_function_flags_and_help_text "$((_function_index_dumb_add++))" \
@@ -2022,9 +2019,7 @@ Arguments:
 All the rest of the arguments e.g. flags will be passed to _error_call(), see
 the help text of _error_call() for more information.
 
-Help text for _error_call():
-
-$(get_help_text '_error_call')"
+$(get_flags_info '_error_call')"
 
 error()
 {
@@ -2091,9 +2086,7 @@ Arguments:
 All the rest of the arguments e.g. flags will be passed to _error_call(), see
 the help text of _error_call() for more information.
 
-Help text for _error_call():
-
-$(get_help_text '_error_call')"
+$(get_flags_info '_error_call')"
 
 warning()
 {
