@@ -283,6 +283,21 @@ get_help_text()
     [[ "$function_registered" != 'true' ]] && return 1
 
     ###
+    # Output first part of help text
+    echo "${registered_help_text}"
+
+    get_flags_info "$function_id"
+
+    return 0
+}
+
+get_flags_info()
+{
+    check_for_help_flag 'get_flags_info' "$@"
+
+    local function_id="$1"
+
+    ###
     # Check that <function_id> is registered through register_function_flags()
     local function_registered='false'
     for i in "${!_handle_args_registered_function_ids[@]}"
@@ -294,10 +309,6 @@ get_help_text()
             break
         fi
     done
-
-    ###
-    # Output first part of help text
-    echo "${registered_help_text}"
 
     [[ "$function_registered" != 'true' ]] && return 0
 
@@ -364,6 +375,8 @@ get_help_text()
         flag_description_line="${flag_description_line}${extra_whitespace}${flags_descriptions[i]}"
         array_flag_description_line[i]="$flag_description_line"
     done
+
+    (( ${#array_flag_description_line[@]} == 0 )) && return 0
 
     ###
     # Output flag description lines
@@ -815,6 +828,25 @@ END_OF_HELP_TEXT
 
 _dumb_add_function_flags_and_help_text $((_function_index_dumb_add++)) \
     'get_help_text' \
+    "$help_text"
+# get_help_text() help text
+###
+
+###
+# Dumb add function flags and help text for get_flags_info()
+define help_text <<END_OF_HELP_TEXT
+get_flags_info <function_id>
+
+Outputs the flags information of the requested <function_id> which have been
+registered using register_function_flags().
+
+Arguments:
+    <function_id>:
+        The function id to get the flags information from
+END_OF_HELP_TEXT
+
+_dumb_add_function_flags_and_help_text $((_function_index_dumb_add++)) \
+    'get_flags_info' \
     "$help_text"
 # get_help_text() help text
 ###
