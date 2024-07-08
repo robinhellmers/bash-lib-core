@@ -1584,7 +1584,7 @@ END_OF_ERROR_INFO
 
 _handle_input_register_function_flags()
 {
-    _handle_args 'register_function_flags' "$@"
+    _handle_args 'register_function_flags' "$@" --allow-non-registered-flags
 
     function_id="${non_flagged_args[0]}"
 }
