@@ -1806,6 +1806,8 @@ Given flag '${arguments[i]}' is not registered for function id: '$function_id'
 $(register_function_flags --help)
 END_OF_ERROR_INFO
 
+            # Extra echo in cases of infinite loops
+            echo "Given flag '${arguments[i]}' is not registered for function id: '$function_id'" >&2
             error 1 '' "$error_info" --manual-help-text "$function_usage"
             exit 1
         fi
@@ -2044,7 +2046,7 @@ error()
 
 _handle_args_error()
 {
-    _handle_args 'error' "$@"
+    _handle_args 'error' "$@" --allow-non-registered-flags
 
     functions_before="${non_flagged_args[0]}"
     function_id="${non_flagged_args[1]}"
@@ -2111,7 +2113,7 @@ warning()
 
 _handle_args_warning()
 {
-    _handle_args 'warning' "$@"
+    _handle_args 'warning' "$@" --allow-non-registered-flags
 
     functions_before="${non_flagged_args[0]}"
     function_id="${non_flagged_args[1]}"
