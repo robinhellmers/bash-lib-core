@@ -190,6 +190,12 @@ _dumb_add_function_flags_and_help_text()
 
     local first_iter='true'
 
+    # Ensure an element is added even if no flag is given
+    _handle_args_registered_function_short_option[$function_index]=''
+    _handle_args_registered_function_long_option[$function_index]=''
+    _handle_args_registered_function_values[$function_index]=''
+    _handle_args_registered_function_descriptions[$function_index]=''
+
     while (( $# > 1 ))
     do
         local input_short_flag="$1"
