@@ -291,7 +291,7 @@ get_help_text()
     ###
     # Output first part of help text
     echo "${registered_help_text}"
-
+    echo
     get_flags_info "$function_id"
 
     return 0
