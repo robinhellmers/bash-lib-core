@@ -1917,77 +1917,72 @@ source_lib()
     fi
 }
 
+
+register_function_flags 'eval_cmd'
+
+register_help_text 'eval_cmd' \
+"eval_cmd <extra_info>
+
+Evaluates the previous command's exit code. If non-zero, it will output the
+given <extra_info> as well as function backtrace. Exits with the same exit code as the
+previous command.
+
+Arguments:
+    <extra_info>: String with information about what command that failed.
+
+Example usage:
+    echo hello
+    eval_cmd 'Failed to echo'"
+
 # Exits and outputs error if command before this fails
 eval_cmd()
 {
     local exit_code=$?
     (( exit_code == 0 )) && return
 
-    local error_info="$1"
+    local extra_info
+    _handle_args_eval_cmd "$@"
+    shift 1
 
-    _validate_input_eval_cmd
+    declare -r PLACEHOLDER_FUNC_NAME='<__PLACEHOLDER_FUNC_NAME__>'
+    local start_message
+    start_message="Command inside ${PLACEHOLDER_FUNC_NAME} failed with exit code: $exit_code"
 
-    # Update COLUMNS regardless if shopt checkwinsize is enabled
-    if [[ -c /dev/tty ]]
+    local extra_info_default
+    extra_info_default="Check the command executed right before eval_cmd()"
+
+    local extra_info_all
+
+    if [[ -n "$extra_info" ]]
     then
-        # Pass /dev/tty to the command as if running as background process, the shell
-        # is not attached to a terminal
-        IFS=' ' read LINES COLUMNS < <(stty size </dev/tty)
+        define extra_info_all <<END_EXTRA_INFO
+$extra_info_default
+
+$extra_info
+END_EXTRA_INFO
     else
-        COLUMNS=80
+        define extra_info_all <<END_EXTRA_INFO
+$extra_info_default
+END_EXTRA_INFO
     fi
 
-    local wrapper="$(printf "%.s#" $(seq $COLUMNS))"
-    local divider="$(printf "%.s-" $(seq $COLUMNS))"
+    # Pass potential flags with "$@"
+    _error_call 1 \
+                '' \
+                "$extra_info_all" \
+                "$start_message" \
+                --backtrace-level 1 \
+                --no-help-text \
+                "$@"
 
-    define output_message << END_OF_OUTPUT_MESSAGE
-${wrapper}
-!! Command failed with exit code: $exit_code
-
-Check the command executed right before eval_cmd()
-
-${divider}
-Backtrace:
-$(backtrace)
-
-${divider}
-Error info:
-
-${error_info}
-
-${wrapper}
-END_OF_OUTPUT_MESSAGE
-
-    echo "$output_message" >&2
     exit $exit_code
 }
 
-_validate_input_eval_cmd()
+_handle_args_eval_cmd()
 {
+    _handle_args 'eval_cmd' "$@" --allow-non-registered-flags
 
-    define function_usage <<END_OF_FUNCTION_USAGE
-Usage: eval_cmd <error_info>
-
-Evaluates the previous command's exit code. If non-zero, it will output the
-given <error_info> as well as function backtrace. Exits with the same exit code
-as the previous command.
-
-<error_info>: String with information about what command that failed.
-
-Example usage:
-    echo hello
-    eval_cmd 'Failed to echo'
-END_OF_FUNCTION_USAGE
-
-    if [[ -z "$error_info" ]]
-    then
-        define error_info <<END_OF_FUNCTION_USAGE
-Input <error_info> not given.
-END_OF_FUNCTION_USAGE
-
-        invalid_function_usage 1 '' "$error_info" --manual-help-text "$function_usage"
-        exit 1
-    fi
+    extra_info="${non_flagged_args[0]}"
 }
 
 register_function_flags 'error'
