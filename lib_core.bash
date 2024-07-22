@@ -1944,11 +1944,12 @@ Example usage:
 eval_cmd()
 {
     local exit_code=$?
-    (( exit_code == 0 )) && return
 
     local extra_info
     _handle_args_eval_cmd "$@"
     shift 1
+
+    (( exit_code == 0 )) && return
 
     declare -r PLACEHOLDER_FUNC_NAME='<__PLACEHOLDER_FUNC_NAME__>'
     local start_message
