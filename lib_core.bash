@@ -155,6 +155,129 @@ define()
     eval "$1=\${$1%$'\n'}"
 }
 
+
+# Overrides the exit() command such that if it executes in an interactive shell,
+# e.g. a terminal, it will return all the way to the return_main() call which
+# you should call at the end of your main function.
+#
+# This is to be able to source a library to a terminal and run functions from
+# that library without any exit() call closing down the terminal and instead
+# return safely to the terminal. Then you can e.g. call an unknown function with
+# the help flag --help to get more information about it.
+#
+# You need to call override_interactive_shell_exit() in the library/script to
+# actually override exit().
+override_interactive_shell_exit()
+{
+    [[ $- == *i* ]] || return
+    # Only if interactive shell is used. E.g. terminal
+
+    exit()
+    {
+        # Exit code is the given one or if not given, it is the exit code of
+        # the last command
+        local exit_code="${1:-$?}"
+        declare -g exit_by_return_exit_code="$exit_code"
+
+        # 'extdebug' enables skipping the command triggering the DEBUG trap
+        # if the DEBUG trap command returns a non-zero value
+        shopt -s extdebug
+        # Utilize DEBUG trap with return non-zero to exit with 'return'
+        # commands instead of 'exit' command
+        trap "_exit_by_return" DEBUG
+    }
+
+    return_main()
+    {
+        local exit_code=$?
+
+        # Allows correct exit code when using exit_by_return()
+        [[ -n "$exit_by_return_exit_code" ]] &&
+            return $exit_by_return_exit_code
+        return $exit_code
+    }
+
+    _exit_by_return()
+    {
+        local skip_command='true'
+        _exit_by_return__check_skip_command
+
+        [[ -z "$DEBUG_CALLSTACK" ]] &&
+            declare -r DEBUG_CALLSTACK='false'
+
+        _exit_by_return__debug_output
+
+        if [[ "$skip_command" != 'true' ]]
+        then
+            trap - DEBUG
+            shopt -u extdebug
+
+            # return 0 means that the incomming command $BASH_COMMAND WILL be
+            # executed
+            return 0
+        fi
+
+        # return non-zero means that the incomming command $BASH_COMMAND will NOT
+        # be executed
+        return 1
+    }
+
+    _exit_by_return__check_skip_command()
+    {
+        skip_command='true'
+
+        if [[ "$BASH_COMMAND" == "return_main" ]]
+        then
+            skip_command='false'
+            return 0
+        fi
+
+        if (( ${#FUNCNAME[@]} == 2 )) &&
+        [[ "${FUNCNAME[0]}" == '_exit_by_return__check_skip_command' ]] &&
+        [[ "${FUNCNAME[1]}" == 'exit_by_return' ]]
+        then
+            echo -e "\nDid not find call of command: 'return_main'" >&2
+            echo -e "Will thereby not exit with correct exit code." >&2
+            echo -e "Call 'return_main' at the end of the main function." >&2
+            skip_command='false'
+            return 0
+        fi
+    }
+
+    _exit_by_return__debug_output()
+    {
+        if [[ "$DEBUG_CALLSTACK" == 'true' ]]
+        then
+            echo
+            if [[ "$skip_command" == 'true' ]]
+            then
+                echo '%%%'
+                echo "Will skip incoming command"
+            else
+                echo '&&&&&'
+                echo "Will NOT skip incoming command"
+            fi
+            echo "Incoming command:"
+            echo "    '$BASH_COMMAND'"
+
+            echo "Number of functions to main: $functions_to_main"
+            echo "Function callstack:"
+            for i in "${!FUNCNAME[@]}"
+            do
+                # Skip this debug function
+                (( i == 0 )) && continue
+
+                echo "    FUNCNAME[$((i-1))]: ${FUNCNAME[i]}"
+            done
+
+            [[ "$skip_command" != 'true' ]] &&
+                echo -e "\nDisabling DEBUG trap and 'extdebug'\n"
+        fi
+    }
+}
+
+override_interactive_shell_exit
+
 _function_index_dumb_add=0
 # Used for core functions in this library to avoid circular dependencies
 #
