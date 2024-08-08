@@ -47,7 +47,8 @@ COLOR_BOLD_WHITE='\033[1;37m'
 
 ###
 # Used internally in library
-readonly ARRAY_SEPARATOR='§'
+[[ -z "${ARRAY_SEPARATOR+x}" ]] &&
+    readonly ARRAY_SEPARATOR='§'
 
 # Arrays to store _handle_args() data
 _handle_args_registered_function_ids=()
