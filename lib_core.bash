@@ -270,7 +270,7 @@ override_interactive_shell_exit()
                 # Skip this debug function
                 (( i == 0 )) && continue
 
-                echo "    FUNCNAME[$((i-1))]: ${FUNCNAME[i]}"
+                echo "    FUNCNAME[$i]: ${FUNCNAME[i]}"
             done
 
             [[ "$skip_command" != 'true' ]] &&
