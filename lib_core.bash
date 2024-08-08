@@ -157,7 +157,7 @@ define()
 
 
 # Overrides the exit() command such that if it executes in an interactive shell,
-# e.g. a terminal, it will return all the way to the return_main() call which
+# e.g. a terminal, it will return all the way to the return_function() call which
 # you should call at the end of your main function.
 #
 # This is to be able to source a library to a terminal and run functions from
@@ -187,7 +187,7 @@ override_interactive_shell_exit()
         trap "_exit_by_return" DEBUG
     }
 
-    return_main()
+    return_function()
     {
         local exit_code=$?
 
@@ -226,7 +226,7 @@ override_interactive_shell_exit()
     {
         skip_command='true'
 
-        if [[ "$BASH_COMMAND" == "return_main" ]]
+        if [[ "$BASH_COMMAND" == "return_function" ]]
         then
             skip_command='false'
             return 0
@@ -236,12 +236,14 @@ override_interactive_shell_exit()
         [[ "${FUNCNAME[0]}" == '_exit_by_return__check_skip_command' ]] &&
         [[ "${FUNCNAME[1]}" == 'exit_by_return' ]]
         then
-            echo -e "\nDid not find call of command: 'return_main'" >&2
-            echo -e "Will thereby not exit with correct exit code." >&2
-            echo -e "Call 'return_main' at the end of the main function." >&2
+            echo -e "\nDid not find call of function: return_function()" >&2
+            echo -e "Will thereby not exit with the correct exit code." >&2
+            echo -e "Call 'return_function' at the end of the function. Probably the function: $last_function()" >&2
             skip_command='false'
             return 0
         fi
+
+        last_function="${FUNCNAME[2]}"
     }
 
     _exit_by_return__debug_output()
