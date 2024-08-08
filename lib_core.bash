@@ -1581,12 +1581,17 @@ END_OF_ERROR_INFO
     local long_option=()
     local expect_value=()
     local description=()
-    while (( $# > 1 ))
+
+    local i
+    local num_args=$#
+    local args=("$@")
+
+    for (( i=0; i < num_args; i+=4 ))
     do
-        local input_short_flag="$1"
-        local input_long_flag="$2"
-        local input_expect_value="$3"
-        local input_description="$4"
+        local input_short_flag="${args[i]}"
+        local input_long_flag="${args[i+1]}"
+        local input_expect_value="${args[i+2]}"
+        local input_description="${args[i+3]}"
 
         if [[ -z "$input_short_flag" ]] && [[ -z "$input_long_flag"  ]]
         then
@@ -1693,8 +1698,6 @@ END_OF_ERROR_INFO
 
         expect_value+=("$input_expect_value")
         description+=("$input_description")
-
-        shift 4
     done
 
     ### Append to global arrays
