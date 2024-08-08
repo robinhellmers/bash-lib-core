@@ -227,7 +227,10 @@ override_interactive_shell_exit()
     {
         skip_command='true'
 
-        if [[ "$BASH_COMMAND" == "return_function" ]]
+        if (( ${#FUNCNAME[@]} == 3 )) &&
+           [[ "${FUNCNAME[0]}" == '_exit_by_return__check_skip_command' ]] &&
+           [[ "${FUNCNAME[1]}" == '_exit_by_return' ]] &&
+           [[ "$BASH_COMMAND" =~ ^'return_function'([[:space:]].*|$) ]]
         then
             skip_command='false'
             return 0
