@@ -8,7 +8,7 @@ guard_source_max_once() {
     [[ "${!guard_var}" ]] && return 1
     [[ "$guard_var" =~ ^[_a-zA-Z][_a-zA-Z0-9]*$ ]] \
         || { echo "Invalid guard: '$guard_var'"; exit 1; }
-    declare -gr "$guard_var=true"
+    declare -g "$guard_var=true"
 }
 
 guard_source_max_once || return 0
