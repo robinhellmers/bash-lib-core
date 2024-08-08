@@ -233,8 +233,8 @@ override_interactive_shell_exit()
         fi
 
         if (( ${#FUNCNAME[@]} == 2 )) &&
-        [[ "${FUNCNAME[0]}" == '_exit_by_return__check_skip_command' ]] &&
-        [[ "${FUNCNAME[1]}" == 'exit_by_return' ]]
+           [[ "${FUNCNAME[0]}" == '_exit_by_return__check_skip_command' ]] &&
+           [[ "${FUNCNAME[1]}" == '_exit_by_return' ]]
         then
             echo -e "\nDid not find call of function: return_function()" >&2
             echo -e "Will thereby not exit with the correct exit code." >&2
