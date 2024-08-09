@@ -190,7 +190,7 @@ override_interactive_shell_exit()
 
     return_function()
     {
-        local exit_code=$?
+        local exit_code="${1:-$?}"
 
         # Allows correct exit code when using exit_by_return()
         [[ -n "$exit_by_return_exit_code" ]] &&
