@@ -200,26 +200,26 @@ override_interactive_shell_exit()
 
     _exit_by_return()
     {
+        [[ "$DEBUG__exit_by_return" != 'true' ]] &&
+            DEBUG__exit_by_return='false'
+
         local skip_command='true'
         _exit_by_return__check_skip_command
-
-        [[ -z "$DEBUG_CALLSTACK" ]] &&
-            declare -r DEBUG_CALLSTACK='false'
-
-        _exit_by_return__debug_output
 
         if [[ "$skip_command" != 'true' ]]
         then
             trap - DEBUG
             shopt -u extdebug
 
-            # return 0 means that the incomming command $BASH_COMMAND WILL be
-            # executed
+            _exit_by_return__debug_output_disable_trap
+
+            # return 0 from DEBUG trap with 'extdebug' set means that the
+            # incomming command $BASH_COMMAND WILL be executed
             return 0
         fi
 
-        # return non-zero means that the incomming command $BASH_COMMAND will NOT
-        # be executed
+        # return 0 from DEBUG trap with 'extdebug' set means that the
+        # incomming command $BASH_COMMAND will NOT be executed
         return 1
     }
 
@@ -233,7 +233,6 @@ override_interactive_shell_exit()
            [[ "$BASH_COMMAND" =~ ^'return_function'([[:space:]].*|$) ]]
         then
             skip_command='false'
-            return 0
         fi
 
         if (( ${#FUNCNAME[@]} == 2 )) &&
@@ -244,41 +243,51 @@ override_interactive_shell_exit()
             echo -e "Will thereby not exit with the correct exit code." >&2
             echo -e "Call 'return_function' at the end of the function. Probably the function: $last_function()" >&2
             skip_command='false'
-            return 0
         fi
+
+        _exit_by_return__debug_output_skipping_incoming_command
+
+        _exit_by_return__debug_output_callstack
 
         last_function="${FUNCNAME[2]}"
     }
 
-    _exit_by_return__debug_output()
+    _exit_by_return__debug_output_skipping_incoming_command()
     {
-        if [[ "$DEBUG_CALLSTACK" == 'true' ]]
+        [[ "$DEBUG__exit_by_return" != 'true' ]] && return
+
+        echo
+        if [[ "$skip_command" == 'true' ]]
         then
-            echo
-            if [[ "$skip_command" == 'true' ]]
-            then
-                echo '%%%'
-                echo "Will skip incoming command"
-            else
-                echo '&&&&&'
-                echo "Will NOT skip incoming command"
-            fi
-            echo "Incoming command:"
-            echo "    '$BASH_COMMAND'"
-
-            echo "Number of functions to main: $functions_to_main"
-            echo "Function callstack:"
-            for i in "${!FUNCNAME[@]}"
-            do
-                # Skip this debug function
-                (( i == 0 )) && continue
-
-                echo "    FUNCNAME[$i]: ${FUNCNAME[i]}"
-            done
-
-            [[ "$skip_command" != 'true' ]] &&
-                echo -e "\nDisabling DEBUG trap and 'extdebug'\n"
+            echo '==='
+            echo "SKIPPING incoming command"
+            echo '==='
+        else
+            echo '% % %'
+            echo "EXECUTING incoming command"
+            echo '% % %'
         fi
+        echo "Incoming command:"
+        echo "    '$BASH_COMMAND'"
+    }
+
+    _exit_by_return__debug_output_callstack()
+    {
+        [[ "$DEBUG__exit_by_return" != 'true' ]] && return
+
+        echo "Function callstack:"
+        for i in "${!FUNCNAME[@]}"
+        do
+            (( i == 0 )) && continue
+            echo "    FUNCNAME[$((i-1))]: ${FUNCNAME[i]}"
+        done
+    }
+
+    _exit_by_return__debug_output_disable_trap()
+    {
+        [[ "$DEBUG__exit_by_return" != 'true' ]] && return
+
+        echo "Disabling DEBUG trap and 'extdebug'"
     }
 }
 
