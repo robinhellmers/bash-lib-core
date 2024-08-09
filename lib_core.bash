@@ -371,27 +371,22 @@ check_for_help_flag()
         exit 0
     fi
 
-    # Look for flag --strict-check-only-help-flag
-    local strict_check='false'
-    for arg in "${arguments[@]}"
-    do
-        if [[ "$arg" == '--strict-check-only-help-flag' ]]
-        then
-            strict_check='true'
-        fi
-    done
-
     local found_help_flag='false'
     local found_other='false'
     # Look for help flag -h/--help
     for arg in "${arguments[@]}"
     do
-        if [[ "$arg" == '-h' ]] || [[ "$arg" == '--help' ]]
-        then
-            found_help_flag='true'
-        else
-            found_other='true'
-        fi
+        case "$arg" in
+            '-h'|'--help')
+                found_help_flag='true'
+                ;;
+            '--strict-check-only-help-flag')
+                strict_check='true'
+                ;;
+            *)
+                found_other='true'
+                ;;
+        esac
     done
 
     [[ "$found_help_flag" != 'true' ]] && return 0
