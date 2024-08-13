@@ -1402,6 +1402,13 @@ _get_func_info()
     func_def_line_num="$(get_func_def_line_num $func_name $func_def_file)"
     func_call_file="${BASH_SOURCE[functions_before + 1]}"
     func_call_line_num="${BASH_LINENO[functions_before]}"
+
+    if [[ -n "$func_name" ]] &&
+       [[ -n "$func_call_line_num" ]] &&
+       [[ -z "$func_call_file" ]]
+    then
+        func_call_file='<< Terminal >>'
+    fi
 }
 
 _create_wrapper_divider()
