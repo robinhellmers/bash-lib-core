@@ -158,7 +158,7 @@ define()
 
 
 # Overrides the exit() command such that if it executes in an interactive shell,
-# e.g. a terminal, it will return all the way to the return_function() call which
+# e.g. a terminal, it will return all the way to the return_end_of_function() call which
 # you should call at the end of your main function.
 #
 # This is to be able to source a library to a terminal and run functions from
@@ -188,7 +188,7 @@ override_interactive_shell_exit()
         trap "_exit_by_return" DEBUG
     }
 
-    return_function()
+    return_end_of_function()
     {
         local exit_code="${1:-$?}"
 
@@ -230,7 +230,7 @@ override_interactive_shell_exit()
         if (( ${#FUNCNAME[@]} == 3 )) &&
            [[ "${FUNCNAME[0]}" == '_exit_by_return__check_skip_command' ]] &&
            [[ "${FUNCNAME[1]}" == '_exit_by_return' ]] &&
-           [[ "$BASH_COMMAND" =~ ^'return_function'([[:space:]].*|$) ]]
+           [[ "$BASH_COMMAND" =~ ^'return_end_of_function'([[:space:]].*|$) ]]
         then
             skip_command='false'
         fi
@@ -239,9 +239,9 @@ override_interactive_shell_exit()
            [[ "${FUNCNAME[0]}" == '_exit_by_return__check_skip_command' ]] &&
            [[ "${FUNCNAME[1]}" == '_exit_by_return' ]]
         then
-            echo -e "\nDid not find call of function: return_function()" >&2
+            echo -e "\nDid not find call of function: return_end_of_function()" >&2
             echo -e "Will thereby not exit with the correct exit code." >&2
-            echo -e "Call 'return_function' at the end of the function. Probably the function: $last_function()" >&2
+            echo -e "Call 'return_end_of_function' at the end of the function. Probably the function: $last_function()" >&2
             skip_command='false'
         fi
 
