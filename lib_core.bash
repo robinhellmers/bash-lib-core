@@ -192,10 +192,13 @@ override_interactive_shell_exit()
     {
         local exit_code="${1:-$?}"
 
+        [[ -z "$exit_by_return_exit_code" ]] && return $exit_code
+
+        # Uses temporary variable to unset global variable
+        local tmp_exit_by_return_exit_code=$exit_by_return_exit_code
+        unset exit_by_return_exit_code
         # Allows correct exit code when using exit_by_return()
-        [[ -n "$exit_by_return_exit_code" ]] &&
-            return $exit_by_return_exit_code
-        return $exit_code
+        return $tmp_exit_by_return_exit_code
     }
 
     _exit_by_return()
@@ -242,6 +245,7 @@ override_interactive_shell_exit()
             echo -e "\nDid not find call of function: return_end_of_function()" >&2
             echo -e "Will thereby not exit with the correct exit code." >&2
             echo -e "Call 'return_end_of_function' at the end of the function. Probably the function: $last_function()" >&2
+            unset exit_by_return_exit_code
             skip_command='false'
         fi
 
