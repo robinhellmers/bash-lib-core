@@ -377,6 +377,7 @@ check_for_help_flag()
 
     local found_help_flag='false'
     local found_other='false'
+    local strict_check='false'
     # Look for help flag -h/--help
     for arg in "${arguments[@]}"
     do
