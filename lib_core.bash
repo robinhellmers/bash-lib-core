@@ -1057,58 +1057,30 @@ backtrace()
     # Top level function name
     local top_level_function='main'
 
-    local iter_part
-    local func_name_part
-    local line_num_part
-    local file_part
-    local iter_len
-    local func_name_len
-    local line_num_len
+    local text_iter_part
+    local text_func_name_part
+    local text_line_num_part
+    local text_file_part
+    local len_text_iter
+    local len_text_func_name
+    local len_text_line_num
 
     local at_part="at"
 
-    local iter_part_template
-    local func_name_part_template
-    local line_num_part_template
-    local file_part_template
-
-    define iter_part_template <<'EOM'
-iter_part="#${i}  "
-EOM
-    define func_name_part_template <<'EOM'
-func_name_part="'${FUNCNAME[$i]}' "
-EOM
-    define line_num_part_template <<'EOM'
-line_num_part="  ${BASH_LINENO[$i]}:"
-EOM
-    define file_part_template <<'EOM'
-file_part=" ${BASH_SOURCE[i+1]}"
-EOM
+    local i=$level_function_callstack
+    local maxlen_text_iter=0
+    local maxlen_text_func_name=0
+    local maxlen_text_line_num=0
 
     ### Find max lengths
     #
-    local i=$level_function_callstack
-    local iter_maxlen=0
-    local func_name_maxlen=0
-    local line_num_maxlen=0
     until [[ "${FUNCNAME[$i]}" == "$top_level_function" ]]
     do
-        eval "$iter_part_template"
-        eval "$func_name_part_template"
-        eval "$line_num_part_template"
-        eval "$file_part_template"
+        _get_func_info_text_parts "$i"
 
-        iter_len=$(wc -m <<< "$iter_part")
-        ((iter_len--))
-        func_name_len=$(wc -m <<< "$func_name_part")
-        ((func_name_len--))
-        line_num_len=$(wc -m <<< "$line_num_part")
-        ((line_num_len--))
+        _get_char_len_of_text_parts
 
-
-        ((iter_len > iter_maxlen)) && iter_maxlen=$iter_len
-        ((func_name_len > func_name_maxlen)) && func_name_maxlen=$func_name_len
-        ((line_num_len > line_num_maxlen)) && line_num_maxlen=$line_num_len
+        _update_maxlen_text_parts
 
         ((i++))
     done
@@ -1120,45 +1092,13 @@ EOM
     i=$level_function_callstack
     until [[ "${FUNCNAME[$i]}" == "$top_level_function" ]]
     do
-        eval "$iter_part_template"
-        eval "$func_name_part_template"
-        eval "$line_num_part_template"
-        eval "$file_part_template"
+        _get_func_info_text_parts "$i"
 
-        iter_len=$(wc -m <<< "$iter_part")
-        ((iter_len--))
+        _get_char_len_of_text_parts
 
-        # Check if to add extra whitespace after 'iter_part'
-        if ((iter_len < iter_maxlen))
-        then
-            local iter_difflen=$((iter_maxlen - iter_len))
-            extra_whitespace="$(printf "%.s " $(seq $iter_difflen))"
-            iter_part="${iter_part}${extra_whitespace}"
-        fi
+        _add_extra_whitespace_post_text_parts
 
-        func_name_len=$(wc -m <<< "$func_name_part")
-        ((func_name_len--))
-
-        # Check if to add extra whitespace after 'func_name_part'
-        if ((func_name_len < func_name_maxlen))
-        then
-            local func_name_difflen=$((func_name_maxlen - func_name_len))
-            extra_whitespace="$(printf "%.s " $(seq $func_name_difflen))"
-            func_name_part="${func_name_part}${extra_whitespace}"
-        fi
-
-        line_num_len=$(wc -m <<< "$line_num_part")
-        ((line_num_len--))
-
-        # Check if to add extra whitespace before 'line_num_part'
-        if ((line_num_len < line_num_maxlen))
-        then
-            local line_num_difflen=$((line_num_maxlen - line_num_len))
-            extra_whitespace="$(printf "%.s " $(seq $line_num_difflen))"
-            line_num_part="${extra_whitespace}${line_num_part}"
-        fi
-
-        local line="${iter_part}${func_name_part}${at_part}${line_num_part}${file_part}"
+        local line="${text_iter_part}${text_func_name_part}${at_part}${text_line_num_part}${text_file_part}"
 
         if [[ -z "$backtrace_output" ]]
         then
@@ -1171,6 +1111,69 @@ EOM
     done
 
     echo "$backtrace_output"
+}
+
+_get_func_info_text_parts()
+{
+    local i="$1"
+
+    ((i++))
+
+    _get_func_info "$i"
+
+    text_iter_part="#$i  "
+    text_func_name_part="'$func_name' "
+    text_line_num_part="  $func_call_line_num:"
+    text_file_part=" $func_call_file"
+}
+
+_get_char_len_of_text_parts()
+{
+    len_text_iter=$(wc -m <<< "$text_iter_part")
+    ((len_text_iter--))
+    len_text_func_name=$(wc -m <<< "$text_func_name_part")
+    ((len_text_func_name--))
+    len_text_line_num=$(wc -m <<< "$text_line_num_part")
+    ((len_text_line_num--))
+}
+
+_update_maxlen_text_parts()
+{
+    ((len_text_iter > maxlen_text_iter)) &&
+        maxlen_text_iter=$len_text_iter
+
+    ((len_text_func_name > maxlen_text_func_name)) &&
+        maxlen_text_func_name=$len_text_func_name
+
+    ((len_text_line_num > maxlen_text_line_num)) &&
+        maxlen_text_line_num=$len_text_line_num
+}
+
+_add_extra_whitespace_post_text_parts()
+{
+    # Check if to add extra whitespace after 'text_iter_part'
+    if ((len_text_iter < maxlen_text_iter))
+    then
+        local iter_difflen=$((maxlen_text_iter - len_text_iter))
+        extra_whitespace="$(printf "%.s " $(seq $iter_difflen))"
+        text_iter_part="${text_iter_part}${extra_whitespace}"
+    fi
+
+    # Check if to add extra whitespace after 'text_func_name_part'
+    if ((len_text_func_name < maxlen_text_func_name))
+    then
+        local func_name_difflen=$((maxlen_text_func_name - len_text_func_name))
+        extra_whitespace="$(printf "%.s " $(seq $func_name_difflen))"
+        text_func_name_part="${text_func_name_part}${extra_whitespace}"
+    fi
+
+    # Check if to add extra whitespace before 'text_line_num_part'
+    if ((len_text_line_num < maxlen_text_line_num))
+    then
+        local line_num_difflen=$((maxlen_text_line_num - len_text_line_num))
+        extra_whitespace="$(printf "%.s " $(seq $line_num_difflen))"
+        text_line_num_part="${extra_whitespace}${text_line_num_part}"
+    fi
 }
 
 _error_call()
@@ -1204,14 +1207,14 @@ _error_call()
         local func_name
         local func_def_file func_def_line_num
         local func_call_file func_call_line_num
-        _get_func_info "$functions_before"
+        _get_func_info "$((functions_before + 1))"
 
         start_message="!! Invalid usage of ${func_name}()"
     else
         local func_name
         local func_def_file func_def_line_num
         local func_call_file func_call_line_num
-        _get_func_info "$functions_before"
+        _get_func_info "$((functions_before + 1))"
 
         # Create PLACEHOLDER_FUNC_NAME in function calling this function.
         # Use it for replacing function name inside this function
@@ -1392,7 +1395,7 @@ _get_func_info()
 {
     local functions_before="$1"
 
-    ((functions_before = functions_before + 2))
+    ((functions_before++))
 
     func_name="${FUNCNAME[functions_before]}"
     func_def_file="${BASH_SOURCE[functions_before]}"
