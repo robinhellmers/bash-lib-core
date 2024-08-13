@@ -1074,7 +1074,8 @@ backtrace()
 
     ### Find max lengths
     #
-    until [[ "${FUNCNAME[$i]}" == "$top_level_function" ]]
+    until [[ "${FUNCNAME[i]}" == "$top_level_function" ]] ||
+          [[ -z "${FUNCNAME[i]}" ]]
     do
         _get_func_info_text_parts "$i"
 
@@ -1090,7 +1091,8 @@ backtrace()
     local extra_whitespace
     local backtrace_output
     i=$level_function_callstack
-    until [[ "${FUNCNAME[$i]}" == "$top_level_function" ]]
+    until [[ "${FUNCNAME[$i]}" == "$top_level_function" ]] ||
+          [[ -z "${FUNCNAME[i]}" ]]
     do
         _get_func_info_text_parts "$i"
 
@@ -1396,6 +1398,13 @@ _get_func_info()
     local functions_before="$1"
 
     ((functions_before++))
+
+    # In case there e.g. is no previous function available.
+    # Avoids infinite loop when e.g. calling eval_cmd() in the terminal
+    if (( $functions_before >= ${#FUNCNAME[@]} ))
+    then
+        (( functions_before = ${#FUNCNAME[@]} - 1 ))
+    fi
 
     func_name="${FUNCNAME[functions_before]}"
     func_def_file="${BASH_SOURCE[functions_before]}"
