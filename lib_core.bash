@@ -2347,13 +2347,30 @@ find_path()
     esac
 
     local path file
-    while [ -L "$file" ]; do # resolve until the file is no longer a symlink
+    # Define a maximum number of iterations to prevent infinite loops
+    # when e.g. using _exit_by_return which skips the commands
+    local max_iterations=50
+    local i
+
+    for (( i=0; i<max_iterations; i++ ))
+    do
+        # Resolve until the file is no longer a symlink
+        [[ ! -L "$file" ]] && break
+
         path=$( cd -P "$( dirname "$file" )" &>/dev/null && pwd )
         file=$(readlink "$file")
         # If $file was a relative symlink, we need to resolve it relative
         # to the path where the symlink file was located
-        [[ $file != /* ]] && file=$path/$file
+        [[ $file != /* ]] && file="$path/$file"
     done
+
+    if (( i >= max_iterations ))
+    then
+        error 0 'find_path' "Maximum number of symlink evaluations reached: \
+$max_iterations. The symlink might be circular."
+        exit 1
+    fi
+
     path=$( cd -P "$( dirname "$file" )" &>/dev/null && pwd )
     file="$path/$(basename "$file")"
 
