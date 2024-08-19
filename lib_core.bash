@@ -2462,15 +2462,21 @@ Arguments:
 
 handle_input_arrays_dynamically()
 {
-    local dynamic_array_prefix="$1"; shift
-    local array_suffix=1
+    local dynamic_array_prefix
+    local num_args
+    local args
+
     _handle_args_handle_input_arrays_dynamically "$@"
+
+    local array_suffix=0
 
     local is_number_regex='^[0-9]+$'
 
-    while (( $# ))
+    # Index of the input which should contain length of upcoming array
+    local index_len_array
+    for (( index_len_array=0; index_len_array < num_args; index_len_array+=num_array_elements + 1))
     do
-        local num_array_elements=$1; shift
+        local num_array_elements="${args[index_len_array]}"
 
         if ! [[ "$num_array_elements" =~ $is_number_regex ]]
         then
@@ -2478,24 +2484,27 @@ handle_input_arrays_dynamically()
             exit 1
         fi
 
-        eval "$dynamic_array_prefix$array_suffix=()";
-        while (( num_array_elements-- > 0 ))
-        do
+        (( array_suffix++ ))
+        eval "$dynamic_array_prefix$array_suffix=()"
 
-            if ((num_array_elements == 0)) && ! [[ "${1+nonexistent}" ]]
-            then
-                # Last element is not set
-                echo "Given array contains less elements than the explicit array size given."
-                exit 1
-            fi
-            eval "$dynamic_array_prefix$array_suffix+=(\"\$1\")"; shift
+        local index_array_element
+        local rel_index_array_element
+        for (( rel_index_array_element=0; rel_index_array_element < num_array_elements; rel_index_array_element++ ))
+        do
+            (( index_array_element = index_len_array + 1 + rel_index_array_element ))
+
+            eval "$dynamic_array_prefix$array_suffix+=(\"\${args[index_array_element]}\")"
         done
-        ((array_suffix++))
     done
 }
+
 _handle_args_handle_input_arrays_dynamically()
 {
     _handle_args 'handle_input_arrays_dynamically' "$@"
+
+    dynamic_array_prefix="${non_flagged_args[0]}"
+    (( num_args = ${#non_flagged_args[@]} - 1 ))
+    args=( "${non_flagged_args[@]:1}" )
 }
 
 echo_color()
