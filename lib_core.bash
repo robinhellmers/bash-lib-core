@@ -2286,6 +2286,42 @@ _handle_args_warning()
     _validate_functions_before_variable 'warning' "$functions_before"
 }
 
+register_function_flags 'find_path'
+
+register_help_text 'find_path' \
+"find_path <to_find>
+          <bash_source_array_len>
+          <bash_source_array>
+
+Arguments:
+    <to_find>:
+        * 'this'
+            - Path to this file
+        * 'this_file'
+            - Path and filename to this file
+        * 'last_exec'
+            - Path to the latest executed script
+            - Example:
+                main.sh sources script_1.bash
+                script_1.sh executes script_2.sh
+                script_2.sh sources  script_3.sh
+                script_3.sh calls find_path()
+                find_path() outputs path to script_2.bash
+        * 'last_exec_file'
+            - Path and filename to the latest executed script
+            - Example:
+                main.sh sources script_1.bash
+                script_1.sh executes script_2.sh
+                script_2.sh sources  script_3.sh
+                script_3.sh calls find_path()
+                find_path() outputs path & filname to script_2.bash
+    <bash_source_array_len>:
+        - Length of \${BASH_SOURCE[@]}
+        - \${#BASH_SOURCE[@]}
+    <bash_source_array>:
+        - Actual array
+        - \${BASH_SOURCE[@]}"
+
 # Only store output in multi-file unique readonly global variables or
 # local variables to avoid variable values being overwritten in e.g.
 # sourced library files.
@@ -2335,36 +2371,7 @@ find_path()
 
 _validate_input_find_path()
 {
-    define function_usage <<'END_OF_FUNCTION_USAGE'
-Usage: find_path <to_find> <bash_source_array_len> <bash_source_array>
-    <to_find>:
-        * 'this'
-            - Path to this file
-        * 'this_file'
-            - Path and filename to this file
-        * 'last_exec'
-            - Path to the latest executed script
-            - Example:
-                main.sh sources script_1.bash
-                script_1.sh executes script_2.sh
-                script_2.sh sources  script_3.sh
-                script_3.sh calls find_path()
-                find_path() outputs path to script_2.bash
-        * 'last_exec_file'
-            - Path and filename to the latest executed script
-            - Example:
-                main.sh sources script_1.bash
-                script_1.sh executes script_2.sh
-                script_2.sh sources  script_3.sh
-                script_3.sh calls find_path()
-                find_path() outputs path & filname to script_2.bash
-    <bash_source_array_len>:
-        - Length of ${BASH_SOURCE[@]}
-        - "${#BASH_SOURCE[@]}"
-    <bash_source_array>:
-        - Actual array
-        - "${BASH_SOURCE[@]}"
-END_OF_FUNCTION_USAGE
+    _handle_args 'find_path' "$@"
 
     # Validate <to_find>
     case "$to_find" in
@@ -2374,7 +2381,7 @@ END_OF_FUNCTION_USAGE
             define error_info <<END_OF_ERROR_INFO
 Invalid input <to_find>: '$to_find'
 END_OF_ERROR_INFO
-            invalid_function_usage 1 '' "$error_info" --manual-help-text "$function_usage"
+            invalid_function_usage 1 'find_path' "$error_info"
             exit 1
             ;;
     esac
@@ -2385,7 +2392,7 @@ END_OF_ERROR_INFO
 define error_info <<END_OF_ERROR_INFO
 Invalid input <bash_source_array_len>, not a number: '$bash_source_array_len'
 END_OF_ERROR_INFO
-            invalid_function_usage 1 '' "$error_info" --manual-help-text "$function_usage"
+            invalid_function_usage 1 'find_path' "$error_info"
             exit 1
             ;;
         *)  ;;
@@ -2402,11 +2409,11 @@ Given length <bash_source_array_len> differs from array length of <bash_source_a
     \${#bash_source_array[@]}: '${#bash_source_array[@]}'
 END_OF_ERROR_INFO
 
-        invalid_function_usage 1 '' "$error_info" --manual-help-text "$function_usage"
+        invalid_function_usage 1 'find_path' "$error_info"
         exit 1
     fi
 
-    unset function_usage error_info
+    unset error_info
 }
 
 # Used for handling arrays as function parameters
