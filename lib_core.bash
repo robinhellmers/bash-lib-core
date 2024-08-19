@@ -2433,19 +2433,38 @@ END_OF_ERROR_INFO
     unset error_info
 }
 
-# Used for handling arrays as function parameters
-# Creates dynamic arrays from the input
-# 1: Dynamic array name prefix e.g. 'input_arr'
-#    Creates dynamic arrays 'input_arr1', 'input_arr2', ...
-# 2: Length of array e.g. "${#arr[@]}"
-# 3: Array content e.g. "${arr[@]}"
-# 4: Length of the next array
-# 5: Content of the next array
-# 6: ...
+register_function_flags 'handle_input_arrays_dynamically'
+
+register_help_text 'handle_input_arrays_dynamically' \
+"handle_input_arrays_dynamically <prefix_arr_name>
+                                <len_arr_1>
+                                <arr_1[@]>
+                                [len_arr_2]
+                                [arr_2[@]]
+                                ...
+
+Used for handling arrays as function parameters.
+Creates dynamic named arrays from the input.
+
+Arguments:
+    <prefix_arr_name>:
+        Dynamic array name prefix e.g. 'input_arr_'
+        Creates dynamic arrays 'input_arr_1', 'input_arr_2', ...
+    <len_arr_1>:
+        Length of array e.g. \"\${#arr[@]}\"
+    <arr_1[@]>:
+        Array content e.g. \"\${arr[@]}\"
+    [len_arr_2]:
+        Length of the next array.
+    [arr_2[@]]:
+        Content of the next array.
+    ..."
+
 handle_input_arrays_dynamically()
 {
     local dynamic_array_prefix="$1"; shift
     local array_suffix=1
+    _handle_args_handle_input_arrays_dynamically "$@"
 
     local is_number_regex='^[0-9]+$'
 
@@ -2473,6 +2492,10 @@ handle_input_arrays_dynamically()
         done
         ((array_suffix++))
     done
+}
+_handle_args_handle_input_arrays_dynamically()
+{
+    _handle_args 'handle_input_arrays_dynamically' "$@"
 }
 
 echo_color()
