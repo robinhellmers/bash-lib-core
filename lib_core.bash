@@ -2537,10 +2537,38 @@ echo_success()
     echo_color "$COLOR_GREEN" "$@"
 }
 
+register_function_flags 'command_exists'
+
+register_help_text 'command_exists' \
+"command_exists <command>
+
+Checks if command exists, ignoring aliases.
+
+Arguments:
+    <command>:
+        The command to check if it exists.
+
+Return value:
+    0 if successful
+    Non-zero if failure"
+
 command_exists()
 {
-    local cmd="$1"
+    local command
+    _handle_args_command_exists "$@"
 
     # 'hash' ignores aliases
-    hash "$1" >/dev/null 2>&1
+    hash "$command" >/dev/null 2>&1
+}
+
+_handle_args_command_exists()
+{
+    _handle_args 'command_exists' "$@"
+
+    command="${non_flagged_args[0]}"
+
+    if [[ -z "$command" ]]
+    then
+        echo_warning "No command given to command_exists()."
+    fi
 }
