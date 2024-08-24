@@ -2152,6 +2152,104 @@ _handle_args_eval_cmd()
     extra_info="${non_flagged_args[0]}"
 }
 
+register_function_flags 'unhandled_case'
+
+register_help_text 'unhandled_case' \
+"unhandled_case <variable_name> <variable_value> [extra_info]
+
+Used e.g. in a case statement for all other *).
+
+Arguments:
+    <variable_name>:
+        Name of the variable containing the unhandled value. Will be printed
+        together with the <variable_value> for debugging.
+    <variable_value>:
+        The unhandled value of <variable_name>. Will be printed together with
+        the <variable_name> for debugging.
+    [extra_info]:
+        Any extra information to add to the error output.
+
+Example:
+    case "\$exit_code" in
+        0) ;;
+        1) ;;
+        *)
+            unhandled_case 'exit_code' "\$exit_code" 'Not yet implemented for...'
+            ;;
+    esac"
+
+unhandled_case()
+{
+    local variable_name
+    local variable_value
+    local extra_info
+
+    local exit_code_given
+    local return_code_given
+
+    _handle_args_unhandled_case "$@"
+    shift 1
+
+    local functions_before=1
+
+    declare -r PLACEHOLDER_FUNC_NAME='<__PLACEHOLDER_FUNC_NAME__>'
+    local start_message="Unhandled case in ${PLACEHOLDER_FUNC_NAME}"
+
+    _error_call "$functions_before" \
+                '' \
+                "$extra_info_output" \
+                "$start_message" \
+                --backtrace-level 1 \
+                --no-help-text
+}
+
+_handle_args_unhandled_case()
+{
+    _handle_args 'unhandled_case' "$@" --allow-non-registered-flags
+
+    variable_name="${non_flagged_args[0]}"
+    extra_info="${non_flagged_args[1]}"
+
+    if [[ -z "$variable_name" ]]
+    then
+        define extra_info <<END_OF_EXTRA_INFO
+Given <variable_name> is empty.
+END_OF_EXTRA_INFO
+
+        invalid_function_usage 1 \
+            'unhandled_case' \
+            "$extra_info" \
+            ""
+        exit 1
+    fi
+
+    define extra_info_output <<END_OF_VARIABLE
+Unhandled case of variable value in variable:
+
+    $variable_name: '${!variable_name}'
+END_OF_VARIABLE
+
+    if [[ -z ${!variable_name+x} ]]
+    then
+        # Variable name inside of 'variable_name' is NOT set
+        define extra_info_output <<END_OF_VARIABLE
+$extra_info_output
+
+The variable is not only empty, but also not set.
+END_OF_VARIABLE
+    fi
+
+
+    if [[ -n "$extra_info" ]]
+    then
+        define extra_info_output <<END_OF_VARIABLE
+$extra_info_output
+
+$extra_info
+END_OF_VARIABLE
+    fi
+}
+
 register_function_flags 'error'
 
 register_help_text 'error' \
