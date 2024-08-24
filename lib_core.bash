@@ -134,6 +134,12 @@ _handle_args_registered_help_text=()
 #   command_exists()
 ###
 
+# Might be overridden
+return_end_of_function()
+{
+    return
+}
+
 # For multiline variable definition
 #
 # Example without evaluation:
