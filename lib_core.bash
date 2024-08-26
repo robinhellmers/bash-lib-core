@@ -257,7 +257,7 @@ override_interactive_shell_exit()
 
         _exit_by_return__debug_output_skipping_incoming_command
 
-        _exit_by_return__debug_output_callstack
+        _debug_output_callstack "$DEBUG__exit_by_return"
 
         last_function="${FUNCNAME[2]}"
     }
@@ -281,18 +281,6 @@ override_interactive_shell_exit()
         echo "    '$BASH_COMMAND'"
     }
 
-    _exit_by_return__debug_output_callstack()
-    {
-        [[ "$DEBUG__exit_by_return" != 'true' ]] && return
-
-        echo "Function callstack:"
-        for i in "${!FUNCNAME[@]}"
-        do
-            (( i == 0 )) && continue
-            echo "    FUNCNAME[$((i-1))]: ${FUNCNAME[i]}"
-        done
-    }
-
     _exit_by_return__debug_output_disable_trap()
     {
         [[ "$DEBUG__exit_by_return" != 'true' ]] && return
@@ -302,6 +290,20 @@ override_interactive_shell_exit()
 }
 
 override_interactive_shell_exit
+
+_debug_output_callstack()
+{
+    local debug_bool="$1"
+
+    [[ "$debug_bool" != 'true' ]] && return
+
+    echo "Function callstack:"
+    for i in "${!FUNCNAME[@]}"
+    do
+        (( i == 0 )) && continue
+        echo "    FUNCNAME[$((i-1))]: ${FUNCNAME[i]}"
+    done
+}
 
 _function_index_dumb_add=0
 # Used for core functions in this library to avoid circular dependencies
@@ -1409,6 +1411,8 @@ _get_func_info()
     local functions_before="$1"
 
     ((functions_before++))
+
+    _debug_output_callstack "$DEBUG__get_func_info"
 
     # In case there e.g. is no previous function available.
     # Avoids infinite loop when e.g. calling eval_cmd() in the terminal
