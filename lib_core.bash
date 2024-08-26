@@ -160,6 +160,8 @@ define()
     IFS= read -r -d '' "$1" || true
     # Remove the trailing newline
     eval "$1=\${$1%$'\n'}"
+
+    return_end_of_function
 }
 
 
@@ -411,6 +413,9 @@ check_for_help_flag()
 
     get_help_text "$function_id"
     exit 0
+
+    # After exit as it is used by _exit_by_return() which skips the exit above
+    return_end_of_function 0
 }
 
 get_help_text()
@@ -440,7 +445,7 @@ get_help_text()
     echo
     get_flags_info "$function_id"
 
-    return 0
+    return_end_of_function
 }
 
 get_flags_info()
@@ -538,7 +543,7 @@ get_flags_info()
         echo "$line"
     done
 
-    return 0
+    return_end_of_function 0
 }
 
 ################################################################################
@@ -991,6 +996,8 @@ get_func_def_line_num()
     (( output_num == 1 )) || { echo '?'; return 1; }
 
     grep -n "^[\s]*${func_name}()" $script_file | cut -d: -f1
+
+    return_end_of_function
 }
 
 is_short_flag()
@@ -1007,7 +1014,7 @@ is_short_flag()
     # Check that it has a single character after the hypen
     [[ "$to_check" =~ ^-[[:alpha:]]$ ]] || return 3
 
-    return 0
+    return_end_of_function 0
 }
 
 is_long_flag()
@@ -1024,7 +1031,7 @@ is_long_flag()
     #       etc.
     get_long_flag_var_name "$to_check" &>/dev/null || return 3
 
-    return 0
+    return_end_of_function
 }
 
 # Outputs valid variable name if the flag is valid, replaces hyphen with underscore
@@ -1042,6 +1049,8 @@ get_long_flag_var_name()
     valid_var_name "$var_name" || return 1
 
     echo "$var_name"
+
+    return_end_of_function
 }
 
 valid_var_name()
@@ -1049,6 +1058,8 @@ valid_var_name()
     check_for_help_flag 'valid_var_name' "$@"
 
     grep -q '^[_[:alpha:]][_[:alpha:][:digit:]]*$' <<< "$1"
+
+    return_end_of_function
 }
 
 backtrace()
@@ -1126,6 +1137,8 @@ backtrace()
     done
 
     echo "$backtrace_output"
+
+    return_end_of_function 0
 }
 
 _get_func_info_text_parts()
@@ -1264,6 +1277,8 @@ _error_call()
 
     echo "$output_message" >&2
     [[ "$invalid_usage_of_this_func" == 'true' ]] && exit 1
+
+    return_end_of_function 0
 }
 
 _handle_args_error_call()
@@ -1542,6 +1557,8 @@ invalid_function_usage()
                 "$start_message" \
                 --backtrace-level 1 \
                 "$@"
+
+    return_end_of_function
 }
 
 _handle_args_invalid_function_usage()
@@ -1756,6 +1773,8 @@ END_OF_ERROR_INFO
     _handle_args_registered_function_values+=("${expect_value[*]}")
     _handle_args_registered_function_descriptions+=("${description[*]}")
     IFS="$old_IFS"
+
+    return_end_of_function 0
 }
 
 _handle_input_register_function_flags()
@@ -1785,6 +1804,8 @@ register_help_text()
 
     _handle_args_registered_help_text_function_ids+=("$function_id")
     _handle_args_registered_help_text+=("$help_text")
+
+    return_end_of_function 0
 }
 
 _handle_input_register_help_text()
@@ -1988,6 +2009,8 @@ END_OF_ERROR_INFO
             exit 1
         fi
     done
+
+    return_end_of_function 0
 }
 
 _validate_input_handle_args()
@@ -2091,6 +2114,8 @@ source_lib()
         echo_error "Could not source library even though the file exists: '$lib'"
         exit 1
     fi
+
+    return_end_of_function 0
 }
 
 
@@ -2153,6 +2178,9 @@ END_EXTRA_INFO
                 "$@"
 
     exit $exit_code
+
+    # After exit as it is used by _exit_by_return() which skips the exit above
+    return_end_of_function $exit_code
 }
 
 _handle_args_eval_cmd()
@@ -2211,6 +2239,8 @@ unhandled_case()
                 "$start_message" \
                 --backtrace-level 1 \
                 --no-help-text
+
+    return_end_of_function
 }
 
 _handle_args_unhandled_case()
@@ -2312,6 +2342,8 @@ error()
                 "$start_message" \
                 --backtrace-level 1 \
                 "$@"
+
+    return_end_of_function
 }
 
 _handle_args_error()
@@ -2379,6 +2411,8 @@ warning()
                 "$start_message" \
                 --backtrace-level 1 \
                 "$@"
+
+    return_end_of_function
 }
 
 _handle_args_warning()
@@ -2492,6 +2526,8 @@ $max_iterations. The symlink might be circular."
     *)  # Validation already done
         ;;
     esac
+
+    return_end_of_function
 }
 
 _validate_input_find_path()
@@ -2604,6 +2640,8 @@ handle_input_arrays_dynamically()
             eval "$dynamic_array_prefix$array_suffix+=(\"\${args[index_array_element]}\")"
         done
     done
+
+    return_end_of_function
 }
 
 _handle_args_handle_input_arrays_dynamically()
@@ -2621,11 +2659,15 @@ echo_color()
     shift
     local output="$@"
     printf "${color}%s${COLOR_END}\n" "$output"
+
+    return_end_of_function
 }
 
 echo_warning()
 {
     echo_color "$COLOR_YELLOW" "$@"
+
+    return_end_of_function
 }
 
 echo_error()
@@ -2633,16 +2675,22 @@ echo_error()
     echo_color "$COLOR_RED" "$@" >&2
     # Flush stderr by line-buffering stdout of echo and redirecting it to stderr
     stdbuf -oL printf "" >&2
+
+    return_end_of_function
 }
 
 echo_highlight()
 {
     echo_color "$COLOR_DEFAULT_BOLD" "$@"
+
+    return_end_of_function
 }
 
 echo_success()
 {
     echo_color "$COLOR_GREEN" "$@"
+
+    return_end_of_function
 }
 
 register_function_flags 'command_exists'
@@ -2667,6 +2715,8 @@ command_exists()
 
     # 'hash' ignores aliases
     hash "$command" >/dev/null 2>&1
+
+    return_end_of_function
 }
 
 _handle_args_command_exists()
