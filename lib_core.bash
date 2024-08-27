@@ -891,7 +891,7 @@ _dumb_add_function_flags_and_help_text "$((_function_index_dumb_add++))" \
 
 ###
 # Dumb add function flags and help text for register_help_text()
-define help_text <<END_OF_HELP_TEXT
+define help_text <<END_OF_HELP_TEXT_
 register_help_text <function_id> <help_text>
 
 Arguments:
@@ -901,16 +901,43 @@ Arguments:
         when registering through register_function_flags().
             - Function id can e.g. be the function name.
     <help_text>:
-        * Multi-line help text where the first line should have the form like e.g.:
-            'register_help_text <function_id> <help_text>'
-        Followed by an empty line and thereafter optional multi-line description.
+        * Given by using heredoc, see example.
+            - Indentation with spaces will remain in the text, meanwhile
+              indentation by tabs will be excluded when <<- is used. This can be
+              used to create better looking text depending on the indentation
+              level where we register help text.
         * Shall not include flag description as that is added automatically using the text
         registered through register_function_flags().
-END_OF_HELP_TEXT
+
+Example:
+
+func()
+{
+    # Inside func just to showcase difference between indentation using tabs vs
+    # spaces. <\\\t> being actual tabs. The differentiation is a heredoc
+    # functionality.
+    register_help_text 'some_other_func' <<-'${COLOR_WHITE}END_OF_HELP_TEXT${COLOR_END}'
+<\\\t><\\\t>${COLOR_GREEN}Here is some help text${COLOR_END}
+<\\\t><\\\t>    ${COLOR_GREEN}With some indentation using spaces${COLOR_END}
+<\\\t><\\\t>    ${COLOR_GREEN}The actual tabs will not be part of the text, according to the${COLOR_END}
+<\\\t><\\\t>    ${COLOR_GREEN}heredoc specification.${COLOR_END}
+<\\\t><\\\t>${COLOR_WHITE}END_OF_HELP_TEXT${COLOR_END}
+}
+
+func
+
+Will result in the help text without indentation by tabs:
+
+${COLOR_GREEN}Here is some help text
+    With some indentation using spaces
+    The actual tabs will not be part of the text, according to the
+    heredoc specification.${COLOR_END}
+
+END_OF_HELP_TEXT_
 
 _dumb_add_function_flags_and_help_text $((_function_index_dumb_add++)) \
     'register_help_text' \
-    "$help_text"
+    "$(echo -e "$help_text")"
 # register_help_text() help text
 ###
 
@@ -968,7 +995,12 @@ Arguments:
         * Should be registered through register_function_flags() before calling
           this function
 Flags:
-    --allow-non-registered-flags    Will allow pass-through and not exit if unregistered flag is used
+    --allow-non-registered-flags
+        Will allow pass-through and not exit if unregistered flag is used
+    --heredoc-arg <index>
+        Allowing heredoc to be used on the given argument index, where first
+        argument is indexed 0.
+
 END_OF_HELP_TEXT
 
 _dumb_add_function_flags_and_help_text $((_function_index_dumb_add++)) \
@@ -1870,13 +1902,38 @@ Usage: _handle_args <function_id> "$@"
 END_OF_FUNCTION_USAGE
 
     local allow_non_registered_flags_handle_args='false'
-    for arg in "${arguments[@]}"
+    local multiline_args_indices=()
+
+     # Process _handle_args() specific flags
+    for ((i=0; i<${#arguments[@]}; i++))
     do
-        if [[ "$arg" == '--allow-non-registered-flags' ]]
-        then
-            allow_non_registered_flags_handle_args='true'
-        fi
+        case "${arguments[i]}" in
+            '--allow-non-registered-flags')
+                allow_non_registered_flags_handle_args='true'
+                unset 'arguments[i]'
+                ;;
+            '--heredoc-arg')
+                ((i++))
+
+                local re='^[0-9]+$'
+                if [[ -z "${arguments[i]}" ]] ||
+                 ! [[ "${arguments[i]}" =~ $re ]]
+                then
+                    define error_info <<END_OF_ERROR_INFO
+Option --heredoc-arg expects an argument index after it.
+END_OF_ERROR_INFO
+                    invalid_function_usage 0 '_handle_args' "$error_info"
+                    exit 1
+                fi
+
+                multiline_args_indices+=("${arguments[i]}")
+                unset 'arguments[i-1]' 'arguments[i]'
+                ;;
+        esac
     done
+
+    # Re-index the arguments array as we potentially unset before
+    arguments=("${arguments[@]}")
 
     _validate_input_handle_args
     # Output:
@@ -1943,7 +2000,33 @@ END_OF_ERROR_INFO
         if ! is_short_flag "${arguments[i]}" && (( is_long_flag_exit_code != 0))
         then
             # Not a flag
-            non_flagged_args+=("${arguments[i]}")
+
+            local arg="${arguments[i]}"
+
+            local len_array="${#non_flagged_args[@]}"
+            local index_non_flagged_args=$len_array
+
+            for multiline_arg_index in "${multiline_args_indices[@]}"
+            do
+                if (( multiline_arg_index == index_non_flagged_args ))
+                then
+                    # Read heredoc and use time limit in case no heredoc given
+                    if ! read -t 0.1 -r -d '' arg
+                    then
+                        define error_info <<-END_OF_ERROR_INFO
+							Expected a heredoc for argument $multiline_arg_index, but none was provided.
+						END_OF_ERROR_INFO
+
+                        invalid_function_usage 2 "$function_id" "$error_info"
+                        exit 1
+                    fi
+
+                    # Remove the trailing newline from heredoc
+                    arg="${arg%$'\n'}"
+                fi
+            done
+
+            non_flagged_args+=("$arg")
             continue
         fi
 
