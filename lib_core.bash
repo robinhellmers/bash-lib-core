@@ -1842,7 +1842,7 @@ register_help_text()
 
 _handle_input_register_help_text()
 {
-    _handle_args 'register_help_text' "$@"
+    _handle_args 'register_help_text' --heredoc-arg 1 "$@"
     
     function_id="${non_flagged_args[0]}"
     help_text="${non_flagged_args[1]}"
