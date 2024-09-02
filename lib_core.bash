@@ -17,6 +17,12 @@ guard_source_max_once || return 0
 ### Library start ###
 #####################
 
+# Wrapping everything for _exit_by_return() to work with
+# return_end_of_function() when sourced from terminal. Ensures that not anything
+# more will be sourced after an exit() and still use the correct exit code by
+# calling return_end_of_function() at the end of library()
+library()
+{
 
 ###
 # Color variables
@@ -237,6 +243,17 @@ override_interactive_shell_exit()
     _exit_by_return__check_skip_command()
     {
         skip_command='true'
+
+        # Used when e.g. sourcing the library from the terminal
+        if (( ${#FUNCNAME[@]} == 4 )) &&
+           [[ "${FUNCNAME[0]}" == '_exit_by_return__check_skip_command' ]] &&
+           [[ "${FUNCNAME[1]}" == '_exit_by_return' ]] &&
+           [[ "${FUNCNAME[2]}" == 'library' ]] &&
+           [[ "${FUNCNAME[3]}" == 'source' ]] &&
+           [[ "$BASH_COMMAND" =~ ^'return_end_of_function'([[:space:]].*|$) ]]
+        then
+            skip_command='false'
+        fi
 
         if (( ${#FUNCNAME[@]} == 3 )) &&
            [[ "${FUNCNAME[0]}" == '_exit_by_return__check_skip_command' ]] &&
@@ -2880,3 +2897,12 @@ _handle_args_command_exists()
         echo_warning "No command given to command_exists()."
     fi
 }
+
+
+#############################
+### End of library()
+    return_end_of_function 0
+}
+#############################
+
+library; unset -f library
