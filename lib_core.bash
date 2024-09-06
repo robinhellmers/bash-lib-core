@@ -1072,7 +1072,7 @@ is_long_flag()
 
     local to_check="$1"
 
-    [[ -z "$to_check" ]] && return 1
+    [[ -n "$to_check" ]] || return 1
 
     [[ "$to_check" =~ ^-- ]] || return 2
 
