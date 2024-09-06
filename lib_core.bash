@@ -280,7 +280,7 @@ override_interactive_shell_exit()
             echo '% % %'
         fi
         echo "Incoming command:"
-        echo "    '$BASH_COMMAND'"
+        echo "    ${BASH_LINENO[2]}:'$BASH_COMMAND'"
     }
 
     _exit_by_return__debug_output_disable_trap()
