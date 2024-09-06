@@ -1891,206 +1891,91 @@ _handle_args()
     shift
     local arguments=("$@")
 
-    define function_usage <<'END_OF_FUNCTION_USAGE'
-Usage: _handle_args <function_id> "$@"
-    <function_id>:
-        * Each function can have its own set of flags. The function id is used
-          for identifying which flags to parse and how to parse them.
-            - Function id can e.g. be the function name.
-        * Should be registered through register_function_flags() before calling
-          this function
-END_OF_FUNCTION_USAGE
-
     local allow_non_registered_flags_handle_args='false'
-    local multiline_args_indices=()
+    local heredoc_args_indices=()
 
-     # Process _handle_args() specific flags
-    for ((i=0; i<${#arguments[@]}; i++))
-    do
-        case "${arguments[i]}" in
-            '--allow-non-registered-flags')
-                allow_non_registered_flags_handle_args='true'
-                unset 'arguments[i]'
-                ;;
-            '--heredoc-arg')
-                ((i++))
+    _get_and_remove_flags_specific_for__handle_args
 
-                local re='^[0-9]+$'
-                if [[ -z "${arguments[i]}" ]] ||
-                 ! [[ "${arguments[i]}" =~ $re ]]
-                then
-                    define error_info <<END_OF_ERROR_INFO
-Option --heredoc-arg expects an argument index after it.
-END_OF_ERROR_INFO
-                    invalid_function_usage 0 '_handle_args' "$error_info"
-                    exit 1
-                fi
-
-                multiline_args_indices+=("${arguments[i]}")
-                unset 'arguments[i-1]' 'arguments[i]'
-                ;;
-        esac
-    done
-
-    # Re-index the arguments array as we potentially unset before
-    arguments=("${arguments[@]}")
-
+    local function_index
     _validate_input_handle_args
-    # Output:
-    # function_index
 
     check_for_help_flag "$function_id" "${arguments[@]}"
 
-    local valid_short_options
-    local valid_long_options
-    local flags_descriptions
-    local expects_value
-    # Convert space separated elements into an array
-    IFS="${ARRAY_SEPARATOR}" read -ra valid_short_options <<< "${_handle_args_registered_function_short_option[function_index]}"
-    IFS="${ARRAY_SEPARATOR}" read -ra valid_long_options <<< "${_handle_args_registered_function_long_option[function_index]}"
-    IFS="${ARRAY_SEPARATOR}" read -ra flags_descriptions <<< "${_handle_args_registered_function_descriptions[function_index]}"
-    IFS="${ARRAY_SEPARATOR}" read -ra expects_value <<< "${_handle_args_registered_function_values[function_index]}"
+    local -a valid_short_options
+    local -a valid_long_options
+    local -a flags_descriptions
+    local -a expects_value
+    _get_arrays_from_2d_arrays "$function_index"
 
     local registered_help_text="${_handle_args_registered_help_text[function_help_text_index]}"
 
-    # Declare and initialize output variables
-    # <long/short option>_flag = 'false'
-    # <long/short option>_flag_value = ''
-    for i in "${!valid_short_options[@]}"
-    do
-        local derived_flag_name=""
-
-        # Find out variable naming prefix
-        # Prefer the long option name if it exists
-        if [[ "${valid_long_options[$i]}" != "_" ]]
-        then
-            derived_flag_name=$(get_long_flag_var_name "${valid_long_options[$i]}")
-            derived_flag_name="${derived_flag_name}_flag"
-        else
-            derived_flag_name="${valid_short_options[$i]#-}_flag"
-        fi
-
-        # Initialization
-        declare -g "$derived_flag_name"='false'
-        if [[ "${expects_value[$i]}" == "true" ]]
-        then
-            declare -g "${derived_flag_name}_value"=''
-        fi
-    done
-
     non_flagged_args=()
+
+    # For every given function argument
     for (( i=0; i<${#arguments[@]}; i++ ))
     do
-        is_long_flag "${arguments[i]}"; is_long_flag_exit_code=$?
+        local arg="${arguments[i]}"
 
-        if (( $is_long_flag_exit_code == 3 ))
-        then
-            # TODO: Update such that '-' can be used in the flag name
-            define error_info << END_OF_ERROR_INFO
-Given long flag have invalid format, cannot create variable name from it: '${arguments[i]}'
-Registered flags through register_function_flags() must follow the valid_var_name() validation.
-END_OF_ERROR_INFO
-
-
-            # TODO: Replace with more general error
-            invalid_function_usage 1 '' "$error_info" --manual-help-text "$function_usage"
-            exit 1
-        fi
-
-        if ! is_short_flag "${arguments[i]}" && (( is_long_flag_exit_code != 0))
+        if ! is_flag "$arg" 'true'
         then
             # Not a flag
-
-            local arg="${arguments[i]}"
-
-            local len_array="${#non_flagged_args[@]}"
-            local index_non_flagged_args=$len_array
-
-            for multiline_arg_index in "${multiline_args_indices[@]}"
-            do
-                if (( multiline_arg_index == index_non_flagged_args ))
-                then
-                    # Read heredoc and use time limit in case no heredoc given
-                    if ! read -t 0.1 -r -d '' arg
-                    then
-                        define error_info <<-END_OF_ERROR_INFO
-							Expected a heredoc for argument $multiline_arg_index, but none was provided.
-						END_OF_ERROR_INFO
-
-                        invalid_function_usage 2 "$function_id" "$error_info"
-                        exit 1
-                    fi
-
-                    # Remove the trailing newline from heredoc
-                    arg="${arg%$'\n'}"
-                fi
-            done
-
             non_flagged_args+=("$arg")
             continue
         fi
 
-        local was_option_handled='false'
+        local registered_long_flag
+        local registered_short_flag
+        local flag_expects_value
+        _find_registered_flag
 
-        for j in "${!valid_short_options[@]}"
-        do
-            local derived_flag_name=""
-            if [[ "${arguments[i]}" == "${valid_long_options[j]}" ]] || \
-               [[ "${arguments[i]}" == "${valid_short_options[j]}" ]]
-            then
+        local derived_flag_var_name
+        _derive_flag_var_name
 
-                # Find out variable naming prefix
-                # Prefer the long option name if it exists
-                if [[ "${valid_long_options[j]}" != "_" ]]
-                then
-                    derived_flag_name=$(get_long_flag_var_name "${valid_long_options[j]}")
-                    derived_flag_name="${derived_flag_name}_flag"
-                else
-                    derived_flag_name="${valid_short_options[j]#-}_flag"
-                fi
+        # Indicate that flag was given by setting the derived variable
+        declare -g "$derived_flag_var_name"='true'
 
-                # Indicate that flag was given
-                declare -g "$derived_flag_name"='true'
+        # Done with flag if no expected value after it
+        [[ "$flag_expects_value" != 'true' ]] && continue
 
-                if [[ "${expects_value[j]}" == 'true' ]]
-                then
-                    ((i++))
+        # Increment for next argument
+        ((i++))
+        local flag_value="${arguments[i]}"
 
-                    local first_character_hyphen='false'
-                    [[ "${arguments[i]:0:1}" == "-" ]] && first_character_hyphen='true'
+        _check_valid_flag_value
 
-                    if [[ -z "${arguments[i]}" ]] || [[ "$first_character_hyphen" == 'true' ]]
-                    then
-                        define error_info <<END_OF_ERROR_INFO
-Option ${valid_short_options[j]} and ${valid_long_options[j]} expects a value supplied after it."
-END_OF_ERROR_INFO
-                        invalid_function_usage 1 '' "$error_info" --manual-help-text "$function_usage"
-                        exit 1
-                    fi
+        # Store given value after flag
+        declare -g "${derived_flag_var_name}_value"="$flag_value"
+    done
 
-                    # Store given value after flag
-                    declare -g "${derived_flag_name}_value"="${arguments[i]}"
-                fi
+    # Sort indices, low to high
+    heredoc_args_indices=($(printf '%s\n' "${heredoc_args_indices[@]}" | sort -n))
 
-                was_option_handled='true'
-                break
-            fi
-        done
+    # Heredoc inputs
+    for heredoc_arg_index in "${heredoc_args_indices[@]}"
+    do
+        local heredoc_arg
+        local read_exit_code
+        # Read heredoc and use time limit in case no heredoc given
+        read -t 0.1 -r -d '' heredoc_arg; read_exit_code=$?
 
-        if [[ "$allow_non_registered_flags_handle_args" != 'true' &&
-              "$was_option_handled" != 'true' ]]
+        if (( read_exit_code > 128 ))
         then
-            define error_info <<END_OF_ERROR_INFO
-Given flag '${arguments[i]}' is not registered for function id: '$function_id'
+            define error_info <<-END_OF_ERROR_INFO
+			    Expected a heredoc for argument index $heredoc_arg_index, but none was provided: '$heredoc_arg'
+			END_OF_ERROR_INFO
 
-$(register_function_flags --help)
-END_OF_ERROR_INFO
-
-            # Extra echo in cases of infinite loops
-            echo "Given flag '${arguments[i]}' is not registered for function id: '$function_id'" >&2
-            error 1 '' "$error_info" --manual-help-text "$function_usage"
+            invalid_function_usage 2 "$function_id" "$error_info"
             exit 1
         fi
+
+        # Remove the trailing newline from heredoc
+        heredoc_arg="${heredoc_arg%$'\n'}"
+
+        _insert_array_element "$heredoc_arg_index" \
+                              "$heredoc_arg" \
+                              "${non_flagged_args[@]}"
+
+        non_flagged_args=( "${result__insert_array_element[@]}" )
     done
 
     return_end_of_function 0
@@ -2156,6 +2041,188 @@ END_OF_ERROR_INFO
         invalid_function_usage 1 '' "$error_info" --manual-help-text "$function_usage"
         exit 1
     fi
+}
+
+_get_and_remove_flags_specific_for__handle_args()
+{
+    # Process _handle_args() specific flags
+    for ((i=0; i<${#arguments[@]}; i++))
+    do
+        local arg="${arguments[i]}"
+
+        case "$arg" in
+            '--allow-non-registered-flags')
+                allow_non_registered_flags_handle_args='true'
+                unset 'arguments[i]'
+                ;;
+            '--heredoc-arg')
+                ((i++))
+                arg="${arguments[i]}"
+
+                local re='^[0-9]+$'
+                if [[ -z "$arg" ]] ||
+                 ! [[ $arg =~ $re ]]
+                then
+                    define error_info <<-END_OF_ERROR_INFO
+						Option --heredoc-arg expects an argument index after it:
+						    '$arg'
+					END_OF_ERROR_INFO
+
+                    invalid_function_usage 3 '_handle_args' "$error_info"
+                    exit 1
+                fi
+
+                heredoc_args_indices+=("$arg")
+                unset 'arguments[i-1]' 'arguments[i]'
+                ;;
+        esac
+    done
+
+    # Re-index the arguments array as we potentially unset before
+    arguments=("${arguments[@]}")
+}
+
+_get_arrays_from_2d_arrays()
+{
+    local function_index="$1"
+
+    # Convert space separated elements into an array
+    IFS="${ARRAY_SEPARATOR}" read -ra valid_short_options <<< "${_handle_args_registered_function_short_option[function_index]}"
+    IFS="${ARRAY_SEPARATOR}" read -ra valid_long_options <<< "${_handle_args_registered_function_long_option[function_index]}"
+    IFS="${ARRAY_SEPARATOR}" read -ra flags_descriptions <<< "${_handle_args_registered_function_descriptions[function_index]}"
+    IFS="${ARRAY_SEPARATOR}" read -ra expects_value <<< "${_handle_args_registered_function_values[function_index]}"
+}
+
+is_flag()
+{
+    local to_check="$1"
+    local exit_on_error="$2"
+
+    local is_long_flag_exit_code
+    local is_short_flag_exit_code
+
+    is_long_flag "$to_check"; is_long_flag_exit_code=$?
+
+    is_short_flag "$to_check"; is_short_flag_exit_code=$?
+
+    _handle_flag_exit_codes
+}
+
+_handle_flag_exit_codes()
+{
+    if (( is_long_flag_exit_code == 3 )) &&
+       [[ "$exit_on_error" == 'true' ]]
+    then
+        define error_info <<-END_OF_ERROR_INFO
+			Given long flag have invalid format, cannot create variable name from it:
+			    '${arguments[i]}'
+			Registered flags through register_function_flags() must follow the
+			valid_var_name() validation.
+		END_OF_ERROR_INFO
+
+        local extra_flags
+        [[ -z "$function_id" ]] &&
+            extra_flags='--no-help-text'
+
+        error 2 "$function_id" "$error_info" "$extra_flags"
+        exit 1
+    fi
+
+    is_a_flag='false'
+
+    if (( is_long_flag_exit_code  == 0 )) ||
+       (( is_short_flag_exit_code == 0 ))
+    then
+        is_a_flag='true'
+        return 0
+    fi
+    return 1
+}
+
+_is_registered_flag()
+{
+    local num_registered_flags=${#valid_short_options[@]}
+
+    for (( j=0; j<num_registered_flags; j++ ))
+    do
+        registered_long_flag="${valid_long_options[j]}"
+        registered_short_flag="${valid_short_options[j]}"
+        flag_expects_value="${expects_value[j]}"
+
+        case "$arg" in
+            "$registered_long_flag"|\
+            "$registered_short_flag")
+                return 0
+                ;;
+            *)
+                continue
+                ;;
+        esac
+    done
+
+    return 1
+}
+
+_find_registered_flag()
+{
+    if ! _is_registered_flag "$arg" &&
+       [[ "$allow_non_registered_flags_handle_args" != 'true' ]]
+    then
+        define error_info <<-END_OF_ERROR_INFO
+			Given flag '$arg' is not registered for function id: '$function_id'
+			
+			$(register_function_flags --help)
+		END_OF_ERROR_INFO
+
+        error 2 "$function_id" "$error_info"
+        exit 1
+    fi
+}
+
+_derive_flag_var_name()
+{
+    # Find out variable naming prefix
+    # Prefer the long option name if it exists
+    if [[ "$registered_long_flag" != "_" ]]
+    then
+        derived_flag_var_name="$(get_long_flag_var_name "$registered_long_flag")"
+        derived_flag_var_name="${derived_flag_var_name}_flag"
+    else
+        derived_flag_var_name="${registered_short_flag#-}_flag"
+    fi
+}
+
+_check_valid_flag_value()
+{
+    if [[ -z "$flag_value" ]] || 
+        is_flag "$flag_value"
+    then
+        # Empty or flag, no an expected value
+        define error_info <<-END_OF_ERROR_INFO
+			Option $registered_short_flag and $registered_long_flag expects a value supplied
+			after it. But '$flag_value' was given."
+		END_OF_ERROR_INFO
+
+        invalid_function_usage 1 "$function_id" "$error_info"
+        exit 1
+    fi
+}
+
+_insert_array_element()
+{
+    local index="$1"
+    local element="$2"
+    shift 2
+    local array=("$@")
+
+    local first_part=("${array[@]:0:$index}")
+    local second_part=("${array[@]:$index}")
+
+    result__insert_array_element=(
+        "${first_part[@]}"
+        "$element"
+        "${second_part[@]}"
+        )
 }
 
 unset _function_index_dumb_add
