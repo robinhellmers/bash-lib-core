@@ -2303,8 +2303,8 @@ source_lib()
 
 register_function_flags 'eval_cmd'
 
-register_help_text 'eval_cmd' \
-"eval_cmd <extra_info>
+register_help_text 'eval_cmd' <<-'END_OF_HELP_TEXT'
+eval_cmd <extra_info>
 
 Evaluates the previous command's exit code. If non-zero, it will output the
 given <extra_info> as well as function backtrace. Exits with the same exit code as the
@@ -2315,7 +2315,8 @@ Arguments:
 
 Example usage:
     echo hello
-    eval_cmd 'Failed to echo'"
+    eval_cmd 'Failed to echo'
+END_OF_HELP_TEXT
 
 # Exits and outputs error if command before this fails
 eval_cmd()
@@ -2374,8 +2375,8 @@ _handle_args_eval_cmd()
 
 register_function_flags 'unhandled_case'
 
-register_help_text 'unhandled_case' \
-"unhandled_case <variable_name> <variable_value> [extra_info]
+register_help_text 'unhandled_case' <<-END_OF_HELP_TEXT
+unhandled_case <variable_name> <variable_value> [extra_info]
 
 Used e.g. in a case statement for all other *).
 
@@ -2396,7 +2397,8 @@ Example:
         *)
             unhandled_case 'exit_code' "\$exit_code" 'Not yet implemented for...'
             ;;
-    esac"
+    esac
+END_OF_HELP_TEXT
 
 unhandled_case()
 {
@@ -2474,8 +2476,8 @@ END_OF_VARIABLE
 
 register_function_flags 'error'
 
-register_help_text 'error' \
-"error <functions_before>
+register_help_text 'error' <<-END_OF_HELP_TEXT
+error <functions_before>
         <function_id>
         <extra_info>
 
@@ -2503,7 +2505,8 @@ Arguments:
 All the rest of the arguments e.g. flags will be passed to _error_call(), see
 the help text of _error_call() for more information.
 
-$(get_flags_info '_error_call')"
+$(get_flags_info '_error_call')
+END_OF_HELP_TEXT
 
 error()
 {
@@ -2543,8 +2546,8 @@ _handle_args_error()
 
 register_function_flags 'warning'
 
-register_help_text 'warning' \
-"warning <functions_before>
+register_help_text 'warning' <<-END_OF_HELP_TEXT
+warning <functions_before>
           <function_id>
           <extra_info>
 
@@ -2572,7 +2575,8 @@ Arguments:
 All the rest of the arguments e.g. flags will be passed to _error_call(), see
 the help text of _error_call() for more information.
 
-$(get_flags_info '_error_call')"
+$(get_flags_info '_error_call')
+END_OF_HELP_TEXT
 
 warning()
 {
@@ -2612,8 +2616,8 @@ _handle_args_warning()
 
 register_function_flags 'find_path'
 
-register_help_text 'find_path' \
-"find_path <to_find>
+register_help_text 'find_path' <<-END_OF_HELP_TEXT
+find_path <to_find>
           <bash_source_array_len>
           <bash_source_array>
 
@@ -2644,7 +2648,8 @@ Arguments:
         - \${#BASH_SOURCE[@]}
     <bash_source_array>:
         - Actual array
-        - \${BASH_SOURCE[@]}"
+        - \${BASH_SOURCE[@]}
+END_OF_HELP_TEXT
 
 # Only store output in multi-file unique readonly global variables or
 # local variables to avoid variable values being overwritten in e.g.
@@ -2761,7 +2766,7 @@ END_OF_ERROR_INFO
 
 register_function_flags 'handle_input_arrays_dynamically'
 
-register_help_text 'handle_input_arrays_dynamically' \
+register_help_text 'handle_input_arrays_dynamically' <<-END_OF_HELP_TEXT
 "handle_input_arrays_dynamically <prefix_arr_name>
                                 <len_arr_1>
                                 <arr_1[@]>
@@ -2784,7 +2789,8 @@ Arguments:
         Length of the next array.
     [arr_2[@]]:
         Content of the next array.
-    ..."
+    ...
+END_OF_HELP_TEXT
 
 handle_input_arrays_dynamically()
 {
@@ -2877,7 +2883,7 @@ echo_success()
 
 register_function_flags 'command_exists'
 
-register_help_text 'command_exists' \
+register_help_text 'command_exists' <<-END_OF_HELP_TEXT
 "command_exists <command>
 
 Checks if command exists, ignoring aliases.
@@ -2888,7 +2894,8 @@ Arguments:
 
 Return value:
     0 if successful
-    Non-zero if failure"
+    Non-zero if failure
+END_OF_HELP_TEXT
 
 command_exists()
 {
