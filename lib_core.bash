@@ -1491,6 +1491,21 @@ _get_func_info()
     func_call_file="${BASH_SOURCE[functions_before + 1]}"
     func_call_line_num="${BASH_LINENO[functions_before]}"
 
+    local is_terminal='false'
+    local len="${#FUNCNAME[@]}"
+
+    if [[ -n "${FUNCNAME[len-1]}" ]] &&
+       [[ "${FUNCNAME[len-1]}" != 'source' ]] &&
+       [[ -n "${BASH_LINENO[len-1]}" ]] &&
+       [[ -z "${BASH_SOURCE[len]}" ]]
+    then
+        is_terminal='true'
+        local terminal_func_called="${FUNCNAME[len-1]}"
+
+        func_def_line_num='??'
+        func_call_line_num='??'
+    fi
+
     if [[ -n "$func_name" ]] &&
        [[ -n "$func_call_line_num" ]] &&
        [[ -z "$func_call_file" ]]
