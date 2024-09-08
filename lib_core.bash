@@ -2383,10 +2383,7 @@ Used e.g. in a case statement for all other *).
 Arguments:
     <variable_name>:
         Name of the variable containing the unhandled value. Will be printed
-        together with the <variable_value> for debugging.
-    <variable_value>:
-        The unhandled value of <variable_name>. Will be printed together with
-        the <variable_name> for debugging.
+        together with the value of the variable, for debugging.
     [extra_info]:
         Any extra information to add to the error output.
 
@@ -2403,7 +2400,6 @@ END_OF_HELP_TEXT
 unhandled_case()
 {
     local variable_name
-    local variable_value
     local extra_info
 
     local exit_code_given
