@@ -2043,7 +2043,7 @@ _validate_input_handle_args()
         define error_info <<'END_OF_ERROR_INFO'
 Given <function_id> is empty.
 END_OF_ERROR_INFO
-        invalid_function_usage 1 '' "$error_info" --manual-help-text "$function_usage"
+        invalid_function_usage 1 '_handle_args' "$error_info"
         exit 1
     fi
 
@@ -2068,7 +2068,7 @@ calling _handle_args(). <function_id>: '$function_id'
 
 $(register_function_flags --help)
 END_OF_ERROR_INFO
-        invalid_function_usage 1 '' "$error_info" --manual-help-text "$function_usage"
+        invalid_function_usage 1 '_handle_args' "$error_info"
         exit 1
     fi
 
@@ -2093,7 +2093,7 @@ calling _handle_args(). <function_id>: '$function_id'
 
 $(register_help_text --help)
 END_OF_ERROR_INFO
-        invalid_function_usage 1 '' "$error_info" --manual-help-text "$function_usage"
+        invalid_function_usage 1 '_handle_args' "$error_info"
         exit 1
     fi
 }
