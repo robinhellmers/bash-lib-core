@@ -1498,17 +1498,33 @@ _get_func_info()
     func_call_file="${BASH_SOURCE[functions_before + 1]}"
     func_call_line_num="${BASH_LINENO[functions_before]}"
 
-    local is_terminal='false'
+    # Bad/Gibberish linenumbers:
+    #   * Calling function directly in terminal
+    #       * Last FUNCNAME[] is some function with last BASH_LINENO[] != 0
+    #
+    # Good/Actual linenumbers:
+    #   * Sourcing script in terminal
+    #       * Last FUNCNAME[] is 'source'
+    #   * Sourcing script from another executed script
+    #       * Last FUNCNAME[] is 'main' with last BASH_LINENO[] == 0,
+    #         not indicating main() function but is default by Bash FUNCNAME
+
     local len="${#FUNCNAME[@]}"
+    local function_call_from_terminal='false'
 
     if [[ -n "${FUNCNAME[len-1]}" ]] &&
-       [[ "${FUNCNAME[len-1]}" != 'source' ]] &&
+       [[ "${FUNCNAME[len-1]}" == 'main' ]] &&
+       (( ${BASH_LINENO[len-1]} != 0 )) &&
        [[ -n "${BASH_LINENO[len-1]}" ]] &&
        [[ -z "${BASH_SOURCE[len]}" ]]
     then
-        is_terminal='true'
-        local terminal_func_called="${FUNCNAME[len-1]}"
+        function_call_from_terminal='true'
+    fi
 
+    if [[ "$function_call_from_terminal" == 'true' ]]
+    then
+        # Line numbers from BASH_LINENO[] will be gibberish, thereby do not
+        # show them
         func_def_line_num='??'
         func_call_line_num='??'
     fi
