@@ -322,6 +322,13 @@ _debug_output_callstack()
         (( i == 0 )) && continue
         echo "    FUNCNAME[$((i-1))]: ${FUNCNAME[i]}"
     done
+    echo "    Line numbers function callstack:"
+    for i in "${!FUNCNAME[@]}"
+    do
+        (( i == 0 )) && continue
+        echo "    BASH_LINENO[$((i-1))]: ${BASH_LINENO[i]}"
+    done
+    echo
 }
 
 _function_index_dumb_add=0
